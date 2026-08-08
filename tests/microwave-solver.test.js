@@ -111,3 +111,19 @@ test("solve2D() power balance holds across a small absorbed-power sweep", () => 
   }
   assert.deepEqual(failures, []);
 });
+
+test("solve2D() clamps temperature and stays finite under a wildly oversized absorbed power", () => {
+  const p = makeParams("sic-60-100-mesh", { P: 5000 });
+  const sol = solve2D(p);
+  assert.ok(Number.isFinite(sol.center) && Number.isFinite(sol.wall) && Number.isFinite(sol.Tmax));
+  // solve2D's own relaxation update clamps every cell to [Ta, 2500 C]
+  assert.ok(sol.Tmax <= 2500 + 1e-6, `Tmax=${sol.Tmax} exceeded the solver's clamp ceiling`);
+});
+
+test("solve2D() with zero absorbed power settles at ambient with no NaN", () => {
+  const p = makeParams("rutile-reduced-600c-30m", { P: 0 });
+  const sol = solve2D(p);
+  assert.ok(sol.converged, `did not converge in ${sol.it + 1} iterations, maxDelta=${sol.maxDelta}`);
+  assert.ok(Math.abs(sol.center - p.Ta) < 1, `center=${sol.center} should settle near ambient=${p.Ta}`);
+  assert.ok(Math.abs(sol.wall - p.Ta) < 1, `wall=${sol.wall} should settle near ambient=${p.Ta}`);
+});
