@@ -112,6 +112,21 @@ test("solve2D() power balance holds across a small absorbed-power sweep", () => 
   assert.deepEqual(failures, []);
 });
 
+test("solve2D() models tube gas entering at the top and exiting at the bottom, matching the 'Gas flow' arrow drawn into the bed from above", () => {
+  // Crank flow rate up so convective cooling dominates the (axially symmetric) microwave
+  // source: gas is coldest right where it enters, so that end of the bed should run
+  // measurably cooler than the end it exits from - the opposite pattern would mean the
+  // gas-row loop is walking z backwards again.
+  const p = makeParams("sic-60-100-mesh", { flow: materialProfiles["sic-60-100-mesh"].defaults.flow * 20 });
+  const sol = solve2D(p);
+  assert.ok(sol.converged);
+  let topJ = -1, botJ = -1;
+  for (let j = 0; j < p.Nz; j++) if (sol.material[j][0] === 2) { if (topJ === -1) botJ = j; topJ = j; }
+  assert.ok(topJ > botJ, "expected at least one bed row found");
+  const Ttop = sol.T[topJ][0], Tbot = sol.T[botJ][0];
+  assert.ok(Ttop < Tbot, `top-of-bed (z high, gas inlet) should run cooler than bottom-of-bed (z low, gas outlet) under strong forced convection: Ttop=${Ttop}, Tbot=${Tbot}`);
+});
+
 test("solve2D() clamps temperature and stays finite under a wildly oversized absorbed power", () => {
   const p = makeParams("sic-60-100-mesh", { P: 5000 });
   const sol = solve2D(p);
