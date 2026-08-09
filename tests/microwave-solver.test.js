@@ -3,7 +3,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  materialProfiles, clamp, dielectric, kBed, penetrationDepth, solve2D, transportNumbers
+  materialProfiles, clamp, dielectric, kBed, penetrationDepth, solve2D, transportNumbers,
+  axisymmetricTensor, homogenizationValidity, porousContinuumClosures, darcyVelocity
 } from "../microwave-solver.js";
 
 // Mirrors microwave.html's parameters() for the two embedded material
@@ -141,4 +142,18 @@ test("solve2D() with zero absorbed power settles at ambient with no NaN", () => 
   assert.ok(sol.converged, `did not converge in ${sol.it + 1} iterations, maxDelta=${sol.maxDelta}`);
   assert.ok(Math.abs(sol.center - p.Ta) < 1, `center=${sol.center} should settle near ambient=${p.Ta}`);
   assert.ok(Math.abs(sol.wall - p.Ta) < 1, `wall=${sol.wall} should settle near ambient=${p.Ta}`);
+});
+
+test("Supplementary Note 3 closures expose axisymmetric effective tensors", () => {
+  const p = makeParams("rutile-reduced-600c-30m", { kzRatio: 1.5, permeabilityLongitudinalRatio: 2 });
+  const closures = porousContinuumClosures(400, p);
+  assert.deepEqual(closures.thermalDispersion, axisymmetricTensor(kBed(400, p) * 1.5, kBed(400, p)));
+  assert.equal(closures.permeability[0][0], 2 * closures.permeability[1][1]);
+  assert.ok(closures.rhoCpEffective > 0);
+  assert.deepEqual(darcyVelocity([-1000, 0, 0], closures.permeability, 2e-5), [closures.permeability[0][0] * 1000 / 2e-5, 0, 0]);
+});
+
+test("homogenization validity checks both macro and microwave scale separation", () => {
+  assert.deepEqual(homogenizationValidity({ unitCellLength: 1e-4, macroLength: 1e-2, wavelength: 1e-1 }), { macroRatio: 0.01, waveRatio: 0.001, valid: true });
+  assert.equal(homogenizationValidity({ unitCellLength: 2e-3, macroLength: 1e-2, wavelength: 1e-1 }).valid, false);
 });
