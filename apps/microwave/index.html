@@ -52,6 +52,7 @@
     <button class="tab" data-tab="s39" role="tab" aria-selected="false">Reduced Model</button>
     <button class="tab" data-tab="howto" role="tab" aria-selected="false">How to Use</button>
     <button class="tab" data-tab="calculations" role="tab" aria-selected="false">Calculations</button>
+    <button class="tab" data-tab="cite" role="tab" aria-selected="false">How to Cite</button>
   </div></nav>
   <main>
     <section id="model2d" class="panel active" role="tabpanel">
@@ -326,6 +327,16 @@
       <div class="doc-grid"><article class="doc-card"><h3>Directly resolved</h3><p>Radial and vertical temperatures in sample, quartz, tube gas, and outside air; porosity-adjusted dielectric and thermal properties; Wakao gas transfer; Ergun pressure correction; contact resistance; quartz radiation; and Churchill–Chu boundary convection.</p></article><article class="doc-card"><h3>Calculated diagnostics</h3><p>Reynolds, Prandtl, Péclet, Graetz, Nusselt, Darcy, Euler, Archimedes, Grashof, Rayleigh, and Biot numbers; permeability; specific gas–solid area; UA; effective volumetric heat capacity; Ergun pressure drop; and the Darcy pressure and superficial-velocity field with its flow-maldistribution ratio.</p></article><article class="doc-card"><h3>Absent from the temperature solver</h3><p>Maxwell field solution, resonance detuning, cavity-wall microwave absorption, Navier–Stokes momentum, advective coupling of the solved Darcy field back into the energy balance, particle-scale hot spots, transient heat capacity, species and reaction equations, temperature-dependent quartz properties, thermometry bias, and prediction intervals for a new experiment.</p></article></div>
       <div class="warning"><strong>Measured regime, so the next stage need not re-derive it</strong> (both embedded profiles at their default settings): the gas carries only <strong>1.1–1.5% of absorbed power</strong>, outer convection 12–27%, and <strong>quartz radiation 71–87%</strong> — and that dominant radiation channel is fitted through the empirical radiating-area multiplier, not derived. Coupling the Darcy field into the energy equation therefore changes a small channel; the largest remaining physics gap is the radiation closure, not the flow. Supporting numbers: Re<sub>p</sub> ≈ 3×10⁻³–2×10⁻², Pe<sub>p</sub> ≈ 2×10⁻³–1×10⁻², UA<sub>gs</sub>/C<sub>g</sub> ≈ 3×10⁴–3×10⁵, ΔP ≈ 27–170 Pa (under 0.2% of inlet pressure), axial advection Péclet 0.01–0.25.</div>
       <div class="warning">Thermal-closure reference: M. P. Bobbin et al., <em>Chemical Engineering Journal</em> 534 (2026) 175266, DOI 10.1016/j.cej.2026.175266. Supporting Information Eq. S39 supplies the reduced-order equation. This page derives its equivalent coefficients from the implemented 2D finite-volume heat fluxes.</div>
+    </section>
+
+    <section id="cite" class="panel" role="tabpanel">
+      <p class="page-kicker">Companion paper</p>
+      <h2 class="page-title">How to Cite</h2>
+      <p class="page-lede">If this tool is useful in your work, please cite the paper it's based on.</p>
+      <article class="doc-card" style="max-width:640px">
+        <p style="margin:0 0 16px">Kwak, Y., Wang, C., Kavale, C. A., Yu, K., Selvam, E., Mallada, R., Santamaria, J., Julian, I., Catal&aacute;-Civera, J. M., &amp; Goyal, H. (2023). <em>Microwave-assisted, performance-advantaged electrification of propane dehydrogenation.</em> <em>Science Advances</em>, 9(37), eadi8219.</p>
+        <a class="btn primary" href="citation.ris" download="kwak-2023-microwave-pdh.ris">Download citation (.ris)</a>
+      </article>
     </section>
   </main>
   <script type="module">
