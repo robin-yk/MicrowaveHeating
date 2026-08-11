@@ -49,7 +49,6 @@
   <header class="site-header"><div class="head-inner"><div><p class="eyebrow">Material-specific steady-state absorbed-power model</p><h1>Microwave Heating Temperature Model</h1></div><div class="author">Yeonsu Kwak | Vlachos Lab, University of Delaware</div></div></header>
   <nav class="tabs-shell" aria-label="Model sections"><div class="tabs" role="tablist">
     <button class="tab active" data-tab="model2d" role="tab" aria-selected="true">2D Temperature Map</button>
-    <button class="tab" data-tab="s39" role="tab" aria-selected="false">Reduced Model</button>
     <button class="tab" data-tab="howto" role="tab" aria-selected="false">How to Use</button>
     <button class="tab" data-tab="calculations" role="tab" aria-selected="false">Calculations</button>
     <button class="tab" data-tab="cite" role="tab" aria-selected="false">How to Cite</button>
@@ -155,25 +154,6 @@
       <div class="table-wrap"><table class="table"><thead><tr><th>Sample-absorbed power</th><th>FBG center: measured</th><th>FBG center: calculated</th><th>Center error</th><th>Quartz wall: measured</th><th>Quartz wall: calculated</th><th>Wall error</th></tr></thead><tbody id="fit-body"></tbody></table></div>
     </section>
 
-    <section id="s39" class="panel" role="tabpanel">
-      <p class="page-kicker">Reduced from the current 2D solution</p><h2 class="page-title">Reduced Model</h2><p class="page-lede">This tab automatically reduces the latest 2D solution to the published Eq. S39 form. It uses the selected material, geometry, absorbed power, average bed temperature, effective conductivity, sample-to-quartz radial heat flow, axial heat flow, and gas sensible heat from the first tab. There are no independent fitting inputs on this tab.</p>
-      <div class="control-bar">
-        <label class="field">2D-derived bed conductivity, ks (W/m·K)<input id="s39-k" type="number" value="0" readonly></label>
-        <label class="field">Equivalent tube-loss Biot number, Bi<input id="s39-bi" type="number" value="0" readonly></label>
-        <label class="field">Cylindrical geometry coefficient, Cgeom<input id="s39-cg" type="number" value="3.14159" readonly></label>
-        <label class="field">Equivalent axial-face + gas coefficient (W/m²·K)<input id="s39-hface" type="number" value="0" readonly></label>
-      </div>
-      <div id="s39-derivation-note" class="warning">Automatically updated whenever the first-tab 2D solver finishes.</div>
-      <div class="stats">
-        <div class="card"><div class="stat-label">Eq. S39 reconstructed temperature</div><div id="s39-temp" class="stat-value">—</div><div class="stat-note">one-temperature reduction of the latest 2D field</div></div>
-        <div class="card"><div class="stat-label">2D model volume-average temperature</div><div id="s39-2davg" class="stat-value">—</div><div class="stat-note">from the latest spatial calculation</div></div>
-        <div class="card"><div class="stat-label">Reduction reconstruction error</div><div id="s39-diff" class="stat-value">—</div><div class="stat-note">Eq. S39 result minus the 2D volume average</div></div>
-        <div class="card"><div class="stat-label">Radial / axial-plus-gas conductance</div><div id="s39-g" class="stat-value">—</div><div class="stat-note">2D-derived equivalent values, W/K</div></div>
-      </div>
-      <div class="formula-card"><h3>Published reduced-order heat balance (Supporting Information Eq. S39)</h3><div class="formula">0 = −2C<sub>geom</sub>Lk<sub>s</sub>[T̄<sub>s</sub> − (T̄<sub>s</sub> + BiT<sub>∞</sub>)/(1+Bi)] − G<sub>face</sub>(T̄<sub>s</sub>−T<sub>∞</sub>) + P<sub>abs</sub></div><div class="formula">k<sub>s</sub>=k<sub>bed</sub>(T̄<sub>2D</sub>); &nbsp; G<sub>tube</sub>=Q<sub>sample→quartz</sub>/(T̄<sub>2D</sub>−T<sub>∞</sub>); &nbsp; Bi=G<sub>tube</sub>/(2πLk<sub>s</sub>−G<sub>tube</sub>)</div><div class="formula">h<sub>face,eq</sub>=(Q<sub>axial</sub>+Q<sub>gas</sub>)/[2πR²(T̄<sub>2D</sub>−T<sub>∞</sub>)]</div><div class="formula-note">Cgeom is fixed at π. The axial-face term includes direct axial conduction out of the bed and the distributed gas sensible-heat sink so that the two-path Eq. S39 form represents all sample heat removal. Because these coefficients are derived from the converged 2D heat fluxes, this tab is a reduced summary rather than an independent temperature prediction.</div></div>
-
-    </section>
-
     <section id="howto" class="panel" role="tabpanel">
       <p class="page-kicker">Operating sequence</p><h2 class="page-title">How to use the model</h2><div class="doc-grid">
         <article class="doc-card"><h3>1 · Select a material profile</h3><p>The selection loads that material's dielectric table, effective thermal parameters, skeletal density, particle diameter, and measured calibration dataset. This release contains reduced-rutile TiO₂ and as-received SiC 60–100 mesh profiles.</p></article>
@@ -188,7 +168,7 @@
     <section id="calculations" class="panel" role="tabpanel">
       <p class="page-kicker">Full calculation record</p><h2 class="page-title">Equations, parameter values, and assumptions</h2>
       <p class="page-lede">The sections below follow the calculation in execution order. Every power term is in watts, every internal length is in metres, and every temperature-dependent material property is evaluated from the current cell temperature. Temperatures are displayed in °C; absolute temperature is used for radiation, ideal-gas density, viscosity, conductivity ratios, and dimensionless transport groups.</p>
-      <div class="formula-card full"><h3>Calculation sequence</h3><div class="formula">Material profile, measured P<sub>abs</sub>, and geometry → material-region map → temperature-dependent ε′, ε″, and k → normalized microwave heat source → sample/quartz/gas/air cell balances → nonlinear steady solution → transport groups, sensor temperatures, and energy balance → 2D-derived Eq. S39 reduction → material-specific experiment comparison</div><div class="formula-note">The Eq. S39 tab receives the converged 2D average temperature and sample-boundary heat fluxes. It summarizes the spatial solution and does not feed temperatures back into the 2D solver.</div></div>
+      <div class="formula-card full"><h3>Calculation sequence</h3><div class="formula">Material profile, measured P<sub>abs</sub>, and geometry → material-region map → temperature-dependent ε′, ε″, and k → normalized microwave heat source → sample/quartz/gas/air cell balances → nonlinear steady solution → transport groups, sensor temperatures, and energy balance → 2D-derived Eq. S39 reduction → material-specific experiment comparison</div><div class="formula-note">The Eq. S39 reduction (Calculations, section 10) receives the converged 2D average temperature and sample-boundary heat fluxes. It summarizes the spatial solution and does not feed temperatures back into the 2D solver.</div></div>
 
       <h3 class="calc-section">1 · Inputs, cylindrical geometry, and material regions</h3>
       <p class="calc-intro">The physical problem is axisymmetric about the tube centerline. The displayed left half is a mirror of the solved radial half-domain, so the fixed 30 × 30 mm display uses 30 × 60 annular control volumes and appears as a 60 × 60 mesh at 0.5 mm spacing.</p>
@@ -270,6 +250,22 @@
       <div class="formula-grid">
         <article class="formula-card full"><h3>Published reduced-order heat balance (Supporting Information Eq. S39)</h3><div class="formula">0=−2C<sub>geom</sub>Lk<sub>s</sub>[T̄<sub>s</sub>−(T̄<sub>s</sub>+BiT<sub>∞</sub>)/(1+Bi)]−G<sub>face</sub>(T̄<sub>s</sub>−T<sub>∞</sub>)+P<sub>abs</sub></div><div class="formula">G<sub>tube</sub>=Q<sub>sample→quartz</sub>/(T̄<sub>2D</sub>−T<sub>∞</sub>); &nbsp; Bi=G<sub>tube</sub>/(2πLk<sub>s</sub>−G<sub>tube</sub>)</div><div class="formula">G<sub>face</sub>=(Q<sub>axial</sub>+Q<sub>gas</sub>)/(T̄<sub>2D</sub>−T<sub>∞</sub>); &nbsp; T̄<sub>s</sub>=T<sub>∞</sub>+P<sub>abs</sub>/(G<sub>tube</sub>+G<sub>face</sub>)</div><div class="formula-note">The solver evaluates ks at the 2D volume-average temperature, extracts radial and axial sample-boundary heat flows from the converged cell-face conductances, and includes gas sensible heat in the equivalent face path. Cgeom is fixed at π. The resulting one-temperature model is an interpretable reduction of the 2D solution, not an independent prediction.</div></article>
       </div>
+      <details>
+        <summary>Live Eq. S39 values from the current 2D solution</summary>
+        <div class="control-bar" style="margin-top:10px">
+          <label class="field">2D-derived bed conductivity, ks (W/m·K)<input id="s39-k" type="number" value="0" readonly></label>
+          <label class="field">Equivalent tube-loss Biot number, Bi<input id="s39-bi" type="number" value="0" readonly></label>
+          <label class="field">Cylindrical geometry coefficient, Cgeom<input id="s39-cg" type="number" value="3.14159" readonly></label>
+          <label class="field">Equivalent axial-face + gas coefficient (W/m²·K)<input id="s39-hface" type="number" value="0" readonly></label>
+        </div>
+        <div id="s39-derivation-note" class="warning">Automatically updated whenever the first-tab 2D solver finishes.</div>
+        <div class="stats">
+          <div class="card"><div class="stat-label">Eq. S39 reconstructed temperature</div><div id="s39-temp" class="stat-value">—</div><div class="stat-note">one-temperature reduction of the latest 2D field</div></div>
+          <div class="card"><div class="stat-label">2D model volume-average temperature</div><div id="s39-2davg" class="stat-value">—</div><div class="stat-note">from the latest spatial calculation</div></div>
+          <div class="card"><div class="stat-label">Reduction reconstruction error</div><div id="s39-diff" class="stat-value">—</div><div class="stat-note">Eq. S39 result minus the 2D volume average</div></div>
+          <div class="card"><div class="stat-label">Radial / axial-plus-gas conductance</div><div id="s39-g" class="stat-value">—</div><div class="stat-note">2D-derived equivalent values, W/K</div></div>
+        </div>
+      </details>
 
       <h3 class="calc-section">11 · Material-specific experimental calibration</h3>
       <div class="formula-grid">
@@ -569,7 +565,6 @@
     function activate(name){
       document.querySelectorAll(".tab").forEach(tab=>{const on=tab.dataset.tab===name;tab.classList.toggle("active",on);tab.setAttribute("aria-selected",String(on));});
       document.querySelectorAll(".panel").forEach(panel=>panel.classList.toggle("active",panel.id===name));
-      if(name==="s39")updateS39();
     }
     function syncClosureControls(){
       const gasManual=$("gas-transfer-mode").value==="manual",boundaryManual=$("boundary-mode").value==="manual";
