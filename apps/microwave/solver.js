@@ -119,6 +119,51 @@ export function packedBedTransport(tempC, p) {
   const specificArea = 6 * solid / p.dp, UA = hgs * specificArea * p.volume * 1e-6, gasEffectiveness = Cg > 0 ? 1 - Math.exp(-UA / Cg) : 0, rhoCpEff = solid * p.rhoSolid * p.cpSolid + eps * state.rho * state.cp;
   return { ...state, Cg, ReP, NuP, hgs, specificArea, UA, gasEffectiveness, permeability, dP, outletPressure: Math.max(5000, p.pressure - dP), rhoCpEff };
 }
+
+// Constitutive data shared by a future coupled Maxwell/Darcy/LTE/species solve.
+// Components follow the reactor-axis convention [longitudinal, transverse,
+// transverse] used in Supplementary Note 3.
+export function axisymmetricTensor(longitudinal, transverse) {
+  if (![longitudinal, transverse].every(value => Number.isFinite(value) && value > 0)) throw new RangeError("tensor components must be finite and positive");
+  return [[longitudinal, 0, 0], [0, transverse, 0], [0, 0, transverse]];
+}
+
+export function homogenizationValidity({ unitCellLength, macroLength, wavelength, maxRatio = 0.1 }) {
+  if (![unitCellLength, macroLength, wavelength, maxRatio].every(value => Number.isFinite(value) && value > 0)) throw new RangeError("homogenization lengths and maxRatio must be finite and positive");
+  const macroRatio = unitCellLength / macroLength, waveRatio = unitCellLength / wavelength;
+  return { macroRatio, waveRatio, valid: macroRatio < maxRatio && waveRatio < maxRatio };
+}
+
+// Every anisotropy ratio is supplied independently and defaults to isotropic.
+// The loss part in particular carries its own ratio: eps' and eps'' come from
+// separate measurements, so scaling eps'' by the eps' ratio would silently
+// assert a direction-independent loss tangent that no measurement supports.
+export function porousContinuumClosures(tempC, p) {
+  const e = dielectric(tempC, p), transport = packedBedTransport(tempC, p), kr = kBed(tempC, p);
+  const epsLongitudinalRatio = p.epsLongitudinalRatio ?? 1, epsLossLongitudinalRatio = p.epsLossLongitudinalRatio ?? 1,
+    permeabilityLongitudinalRatio = p.permeabilityLongitudinalRatio ?? 1, thermalLongitudinalRatio = p.kzRatio ?? 1;
+  if (![epsLongitudinalRatio, epsLossLongitudinalRatio, permeabilityLongitudinalRatio, thermalLongitudinalRatio].every(value => Number.isFinite(value) && value > 0)) throw new RangeError("anisotropy ratios must be finite and positive");
+  return {
+    permittivityReal: axisymmetricTensor(e.ep * epsLongitudinalRatio, e.ep),
+    permittivityLoss: axisymmetricTensor(e.epp * epsLossLongitudinalRatio, e.epp),
+    permeability: axisymmetricTensor(transport.permeability * permeabilityLongitudinalRatio, transport.permeability),
+    thermalDispersion: axisymmetricTensor(kr * thermalLongitudinalRatio, kr),
+    rhoCpEffective: transport.rhoCpEff
+  };
+}
+
+export function darcyVelocity(pressureGradient, permeabilityTensor, viscosity) {
+  if (!Array.isArray(pressureGradient) || pressureGradient.length !== 3 || !pressureGradient.every(Number.isFinite)) throw new TypeError("pressureGradient must contain three finite components");
+  if (!Number.isFinite(viscosity) || viscosity <= 0) throw new RangeError("viscosity must be finite and positive");
+  if (!Array.isArray(permeabilityTensor) || permeabilityTensor.length !== 3 || permeabilityTensor.some(row => !Array.isArray(row) || row.length !== 3 || !row.every(Number.isFinite))) throw new TypeError("permeabilityTensor must be a finite 3 by 3 matrix");
+  // A vanishing component must read as +0: negating a zero sum yields -0, which
+  // fails strict comparisons and would surface as "-0.00 m/s" once a pressure
+  // solver feeds these velocities to the page.
+  return permeabilityTensor.map(row => {
+    const component = -row.reduce((sum, value, column) => sum + value * pressureGradient[column], 0) / viscosity;
+    return component === 0 ? 0 : component;
+  });
+}
 export function naturalConvection(tempC, p) {
   const Rg = 8.314462618, g = 9.80665, Tfilm = (tempC + p.Ta) / 2 + 273.15, Mair = .0289652, mu = 1.81e-5 * Math.pow(Tfilm / 293.15, 1.5) * (293.15 + 111) / (Tfilm + 111), rho = p.pressure * Mair / (Rg * Tfilm), cp = 1007, k = .0263 * Math.pow(Tfilm / 293.15, .76), Pr = mu * cp / k, nu = mu / rho, beta = 1 / Tfilm, L = Math.max(p.domainHeight, 1e-6), dT = Math.abs(tempC - p.Ta), Gr = g * beta * dT * Math.pow(L, 3) / (nu * nu), Ra = Gr * Pr, Nu = Math.pow(.825 + .387 * Math.pow(Math.max(Ra, 0), 1 / 6) / Math.pow(1 + Math.pow(.492 / Pr, 9 / 16), 8 / 27), 2);
   return { Tfilm, Pr, Gr, Ra, Nu, h: Nu * k / L };
