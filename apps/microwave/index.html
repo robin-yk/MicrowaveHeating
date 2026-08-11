@@ -55,10 +55,9 @@
   </div></nav>
   <main>
     <section id="model2d" class="panel active" role="tabpanel">
-      <p class="page-kicker">Vertical cylindrical tube and surrounding air</p><h2 class="page-title">Steady-state 2D temperature map</h2>
-      <div class="action-row"><button id="run2d" class="btn primary" type="button">Calculate steady temperatures</button><span id="solver-status" class="status">Ready</span><span id="geometry-status" class="status"></span></div>
       <div class="mw-layout">
         <aside class="mw-sidebar" aria-label="Model inputs">
+          <div class="action-row" style="margin:0 0 4px"><button id="run2d" class="btn primary" type="button">Calculate steady temperatures</button><span id="solver-status" class="status">Ready</span><span id="geometry-status" class="status"></span></div>
           <div class="control-bar">
             <label class="field">Material and calibration profile<select id="material"><option value="rutile-reduced-600c-30m" selected>Reduced rutile TiO₂ · H₂ 600 °C, 30 min</option><option value="sic-60-100-mesh">SiC 60–100 mesh · as received</option></select></label>
             <label class="field">Power absorbed by sample, Pabs (W)<input id="pabs" type="number" min="0" step="0.1" value="26"></label>
