@@ -108,12 +108,25 @@ export function gasState(tempC, p, pressure = p.pressure) {
   const mu = mu0 * Math.pow(TK / 293.15, 1.5) * (293.15 + S) / (TK + S), rho = pressure * M / (Rg * TK), cp = Cpm / M, kg = gasConductivity(tempC, p.gas), Pr = mu * cp / kg, ndot = p.flow * 1e-6 / 60 / .022414, Qactual = ndot * Rg * TK / pressure, u = Qactual / (Math.PI * p.D * p.D / 4);
   return { TK, M, Cpm, mu, rho, cp, kg, Pr, ndot, Qactual, u, pressure };
 }
+// Blake-Kozeny permeability. Its constant has to be the same one the Ergun
+// viscous term uses, or Darcy's law and the reported pressure drop describe
+// two different beds: at 180 here against Ergun's 150 below, mu*u/K came out
+// exactly 20% above the viscous term it is supposed to reproduce. The Ergun
+// value wins because dP is what the page reports and what experiments measure.
+export const ERGUN_VISCOUS_CONSTANT = 150;
+export function darcyPermeability(p) {
+  const eps = p.voidFraction, solid = Math.max(1e-8, 1 - eps), constant = p.ergunViscousConstant ?? ERGUN_VISCOUS_CONSTANT;
+  if (!(Number.isFinite(constant) && constant > 0)) throw new RangeError("ergunViscousConstant must be finite and positive");
+  return Math.pow(eps, 3) * p.dp * p.dp / (constant * solid * solid);
+}
 export function packedBedTransport(tempC, p) {
   const g = 9.80665, eps = p.voidFraction, solid = Math.max(1e-8, 1 - eps), Cg = gasCapacityRate(p); let pressure = p.pressure, state, dP = 0, ReP = 0, NuP = 2, hgs = 0, permeability = 0;
   for (let pass = 0; pass < 3; pass++) {
     state = gasState(tempC, p, pressure); ReP = state.rho * state.u * p.dp / state.mu; NuP = 2 + 1.1 * Math.pow(Math.max(ReP, 0), .6) * Math.pow(state.Pr, 1 / 3); hgs = NuP * state.kg / p.dp;
-    permeability = Math.pow(eps, 3) * p.dp * p.dp / (180 * solid * solid);
-    const dPdz = 150 * state.mu * solid * solid * state.u / (Math.pow(eps, 3) * p.dp * p.dp) + 1.75 * state.rho * solid * state.u * state.u / (Math.pow(eps, 3) * p.dp);
+    permeability = darcyPermeability(p);
+    // Viscous term written as mu*u/K so the identity with Darcy's law holds by
+    // construction instead of by two constants happening to agree.
+    const dPdz = state.mu * state.u / permeability + 1.75 * state.rho * solid * state.u * state.u / (Math.pow(eps, 3) * p.dp);
     dP = dPdz * p.H; pressure = Math.max(5000, p.pressure - dP / 2);
   }
   const specificArea = 6 * solid / p.dp, UA = hgs * specificArea * p.volume * 1e-6, gasEffectiveness = Cg > 0 ? 1 - Math.exp(-UA / Cg) : 0, rhoCpEff = solid * p.rhoSolid * p.cpSolid + eps * state.rho * state.cp;
@@ -169,7 +182,10 @@ export function naturalConvection(tempC, p) {
   return { Tfilm, Pr, Gr, Ra, Nu, h: Nu * k / L };
 }
 
-export function solve2D(p) {
+// Mesh, material map, and cell metrics for the axisymmetric domain. Extracted
+// so the flow solver and its tests build the exact same grid solve2D uses:
+// material 2 = packed bed, 1 = tube gas, 3 = quartz, 0 = outside air.
+export function bedMesh(p) {
   const R = p.D / 2, Ro = R + p.tq, Rd = p.domainWidth / 2, Hd = p.domainHeight, dr = Rd / p.Nr, dz = Hd / p.Nz;
   const material = Array.from({ length: p.Nz }, (_, j) => Array.from({ length: p.Nr }, (_, i) => {
     const r = (i + .5) * dr, z = (j + .5) * dz - Hd / 2;
@@ -178,12 +194,103 @@ export function solve2D(p) {
     if (r < Ro) return 3;
     return 0;
   }));
+  const vols = [], areasZ = [];
+  for (let i = 0; i < p.Nr; i++) { const rw = i * dr, re = (i + 1) * dr; vols[i] = Math.PI * (re * re - rw * rw) * dz; areasZ[i] = Math.PI * (re * re - rw * rw); }
+  return { R, Ro, Rd, Hd, dr, dz, material, vols, areasZ };
+}
+
+// Superficial-velocity field on the packed bed from continuity plus Darcy's
+// law, div(lambda grad P) = 0 with mobility lambda = rho*K/mu.
+//
+// Both bed end faces are isobars: the open tube above and below the bed adds no
+// appreciable resistance, so flow splits between columns purely by local
+// mobility. That radial maldistribution -- hot centre means higher mu, so less
+// flow -- is the physics a single plug-flow stream cannot express, and it is
+// exactly what a prescribed uniform inlet flux would erase.
+//
+// The system is linear in P, so this solves once with phi = 1 on the inlet face
+// and phi = 0 on the outlet face, measures the unit-potential mass flow, then
+// scales by dP = mdot / flowPerPascal. Face mass fluxes are read straight out of
+// that solution, which makes the discrete mass balance exact rather than
+// approximate -- a requirement for the energy equation Stage 2 builds on top.
+//
+// Inlet and outlet faces are found from the material map (a bed cell with no bed
+// neighbour above or below) rather than assumed rectangular, so the geometry
+// stays free to change. Gas enters at the top, matching solve2D's gas march.
+export function darcyField({ p, T, material, dr, dz, areasZ, phi0 = null, maxIter = 20000, tol = 1e-13, omega = 1.7 }) {
+  const Nz = material.length, Nr = material[0].length;
+  const K = darcyPermeability(p), ratio = p.permeabilityLongitudinalRatio ?? 1;
+  if (!(Number.isFinite(ratio) && ratio > 0)) throw new RangeError("permeabilityLongitudinalRatio must be finite and positive");
+  if (!(Number.isFinite(omega) && omega > 0 && omega < 2)) throw new RangeError("omega must lie in (0, 2)");
+  const lamZ = Array.from({ length: Nz }, () => Array(Nr).fill(0)), lamR = Array.from({ length: Nz }, () => Array(Nr).fill(0)), rho = Array.from({ length: Nz }, () => Array(Nr).fill(0));
+  const bed = (j, i) => j >= 0 && j < Nz && i >= 0 && i < Nr && material[j][i] === 2;
+  for (let j = 0; j < Nz; j++) for (let i = 0; i < Nr; i++) {
+    if (!bed(j, i)) continue;
+    const g = gasState(T[j][i], p);
+    rho[j][i] = g.rho; lamZ[j][i] = g.rho * K * ratio / g.mu; lamR[j][i] = g.rho * K / g.mu;
+  }
+  // Harmonic-mean face mobilities, mirroring how interfaceG adds resistances.
+  const gR = (j, i) => { const A = 2 * Math.PI * (i + 1) * dr * dz; return 1 / (dr / (2 * lamR[j][i] * A) + dr / (2 * lamR[j][i + 1] * A)); };
+  const gZ = (j, i) => { const A = areasZ[i]; return 1 / (dz / (2 * lamZ[j][i] * A) + dz / (2 * lamZ[j + 1][i] * A)); };
+  const gEnd = (j, i) => lamZ[j][i] * areasZ[i] / (dz / 2);
+  const isInlet = (j, i) => bed(j, i) && !bed(j + 1, i), isOutlet = (j, i) => bed(j, i) && !bed(j - 1, i);
+  // Seed with the linear profile, which is the exact answer for a uniform bed,
+  // so a cold start costs almost nothing and a warm start costs less.
+  const phi = phi0 ? phi0.map(row => row.slice()) : Array.from({ length: Nz }, () => Array(Nr).fill(0));
+  if (!phi0) for (let i = 0; i < Nr; i++) {
+    const rows = []; for (let j = 0; j < Nz; j++) if (bed(j, i)) rows.push(j);
+    rows.forEach((j, n) => { phi[j][i] = (n + .5) / rows.length; });
+  }
+  let it = 0, converged = false, maxDelta = Infinity;
+  for (it = 0; it < maxIter; it++) {
+    maxDelta = 0;
+    for (let j = 0; j < Nz; j++) for (let i = 0; i < Nr; i++) {
+      if (!bed(j, i)) continue;
+      let sum = 0, rhs = 0;
+      if (bed(j, i - 1)) { const G = gR(j, i - 1); sum += G; rhs += G * phi[j][i - 1]; }
+      if (bed(j, i + 1)) { const G = gR(j, i); sum += G; rhs += G * phi[j][i + 1]; }
+      if (bed(j - 1, i)) { const G = gZ(j - 1, i); sum += G; rhs += G * phi[j - 1][i]; } else sum += gEnd(j, i);
+      if (bed(j + 1, i)) { const G = gZ(j, i); sum += G; rhs += G * phi[j + 1][i]; } else { const G = gEnd(j, i); sum += G; rhs += G; }
+      const next = rhs / Math.max(sum, 1e-300), updated = phi[j][i] + omega * (next - phi[j][i]);
+      maxDelta = Math.max(maxDelta, Math.abs(updated - phi[j][i])); phi[j][i] = updated;
+    }
+    if (maxDelta < tol) { converged = true; break; }
+  }
+  const inlet = gasState(p.Ta, p), massFlow = inlet.ndot * inlet.M;
+  let flowPerPascal = 0;
+  for (let j = 0; j < Nz; j++) for (let i = 0; i < Nr; i++) if (isOutlet(j, i)) flowPerPascal += gEnd(j, i) * phi[j][i];
+  const dP = flowPerPascal > 0 ? massFlow / flowPerPascal : 0;
+  // Face mass flows in kg/s, signed along +z and +r. fluxZ[j][i] crosses the
+  // face below cell j; fluxR[j][i] crosses the face at r = i*dr.
+  const fluxZ = Array.from({ length: Nz + 1 }, () => Array(Nr).fill(0)), fluxR = Array.from({ length: Nz }, () => Array(Nr + 1).fill(0));
+  for (let j = 0; j < Nz; j++) for (let i = 0; i < Nr; i++) {
+    if (!bed(j, i)) continue;
+    if (bed(j - 1, i)) fluxZ[j][i] = dP * gZ(j - 1, i) * (phi[j - 1][i] - phi[j][i]);
+    else fluxZ[j][i] = dP * gEnd(j, i) * (0 - phi[j][i]);
+    if (isInlet(j, i)) fluxZ[j + 1][i] = dP * gEnd(j, i) * (phi[j][i] - 1);
+    if (bed(j, i - 1)) fluxR[j][i] = dP * gR(j, i - 1) * (phi[j][i - 1] - phi[j][i]);
+  }
+  let maxMassImbalance = 0, outletMassFlow = 0, uMax = 0, uMin = Infinity;
+  const columnVelocity = Array(Nr).fill(0);
+  for (let j = 0; j < Nz; j++) for (let i = 0; i < Nr; i++) {
+    if (!bed(j, i)) continue;
+    maxMassImbalance = Math.max(maxMassImbalance, Math.abs(fluxZ[j][i] - fluxZ[j + 1][i] + fluxR[j][i] - fluxR[j][i + 1]));
+    if (!isOutlet(j, i)) continue;
+    outletMassFlow += -fluxZ[j][i];
+    const u = rho[j][i] > 0 ? -fluxZ[j][i] / (rho[j][i] * areasZ[i]) : 0;
+    columnVelocity[i] = u; uMax = Math.max(uMax, u); uMin = Math.min(uMin, u);
+  }
+  if (!Number.isFinite(uMin)) uMin = 0;
+  return { phi, dP, permeability: K, inletPressure: p.pressure + dP, outletPressure: p.pressure, massFlow, outletMassFlow, maxMassImbalance, fluxZ, fluxR, columnVelocity, uMax, uMin, maldistribution: uMin > 0 ? uMax / uMin : 1, it, converged, maxDelta };
+}
+
+export function solve2D(p) {
+  const mesh = bedMesh(p), { R, Ro, Rd, Hd, dr, dz, material, vols, areasZ } = mesh;
   const T = Array.from({ length: p.Nz }, (_, j) => Array.from({ length: p.Nr }, (_, i) => {
     const r = (i + .5) * dr, z = (j + .5) * dz - Hd / 2, d = Math.hypot(Math.max(0, r - R), Math.max(0, Math.abs(z) - p.H / 2));
     return p.Ta + p.P * 22 * Math.exp(-d / .006);
   }));
-  const vols = [], areasZ = []; let V = 0;
-  for (let i = 0; i < p.Nr; i++) { const rw = i * dr, re = (i + 1) * dr; vols[i] = Math.PI * (re * re - rw * rw) * dz; areasZ[i] = Math.PI * (re * re - rw * rw); }
+  let V = 0;
   for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) if (material[j][i] === 2) V += vols[i];
   const airK = temp => .0263 * Math.pow((temp + 273.15) / 293.15, .76) * p.airFactor;
   const conductivity = (m, temp, dir) => m === 2 ? (dir === "z" ? p.kzRatio : 1) * kBed(temp, p) : m === 1 ? gasConductivity(temp, p.gas) : m === 3 ? p.kq : airK(temp);
@@ -246,7 +353,11 @@ export function solve2D(p) {
   }
   const qgas = Cg * (gasTout - p.Ta), balance = p.P - qBoundary - qrad - qgas;
   for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) heat[j][i] /= vols[i];
-  return { p, T, heat, material, R, Ro, Rd, Hd, dr, dz, V, center, fbg, wall, surface, Tavg, Tmax, Tmin, Tout: gasTout, dpCenter: penetrationDepth(center, p), epsCenter: dielectric(center, p), qgas, qRadialBed, qAxialBed, qBoundary, qrad, balance, it, converged, maxDelta, transport: lastTransport, gasEffectivenessUsed, hBoundaryEff };
+  // Solved on the converged temperatures and reported only: the energy sweep
+  // above still uses the legacy gas march, so nothing here feeds back into T.
+  // Wiring these face mass flows into the energy equation is Stage 2's job.
+  const darcy = p.flowMode === "off" ? null : darcyField({ p, T, material, dr, dz, areasZ });
+  return { p, T, heat, material, R, Ro, Rd, Hd, dr, dz, V, center, fbg, wall, surface, Tavg, Tmax, Tmin, Tout: gasTout, dpCenter: penetrationDepth(center, p), epsCenter: dielectric(center, p), qgas, qRadialBed, qAxialBed, qBoundary, qrad, balance, it, converged, maxDelta, transport: lastTransport, gasEffectivenessUsed, hBoundaryEff, darcy };
 }
 
 export function transportNumbers(sol) {
