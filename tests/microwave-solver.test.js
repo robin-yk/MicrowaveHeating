@@ -4,8 +4,23 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   materialProfiles, clamp, dielectric, kBed, penetrationDepth, solve2D, transportNumbers,
-  axisymmetricTensor, homogenizationValidity, porousContinuumClosures, darcyVelocity
+  axisymmetricTensor, homogenizationValidity, porousContinuumClosures, darcyVelocity,
+  bedMesh, darcyField, darcyPermeability, packedBedTransport, gasState, ERGUN_VISCOUS_CONSTANT
 } from "../microwave-solver.js";
+
+// Bed extent on a given mesh: the row/column span of material 2, plus the axial
+// length and cross-section the analytic Darcy checks below need.
+function bedExtent(p, mesh) {
+  let jMin = Infinity, jMax = -1, iMax = -1;
+  for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) if (mesh.material[j][i] === 2) {
+    jMin = Math.min(jMin, j); jMax = Math.max(jMax, j); iMax = Math.max(iMax, i);
+  }
+  let area = 0; for (let i = 0; i <= iMax; i++) area += mesh.areasZ[i];
+  return { jMin, jMax, iMax, rows: jMax - jMin + 1, length: (jMax - jMin + 1) * mesh.dz, area };
+}
+function uniformField(p, value) {
+  return Array.from({ length: p.Nz }, () => Array(p.Nr).fill(value));
+}
 
 // Mirrors microwave.html's parameters() for the two embedded material
 // profiles, using each profile's own defaults instead of guessing values,
@@ -176,4 +191,116 @@ test("closure anisotropy ratios are independent and default to isotropic", () =>
 test("homogenization validity checks both macro and microwave scale separation", () => {
   assert.deepEqual(homogenizationValidity({ unitCellLength: 1e-4, macroLength: 1e-2, wavelength: 1e-1 }), { macroRatio: 0.01, waveRatio: 0.001, valid: true });
   assert.equal(homogenizationValidity({ unitCellLength: 2e-3, macroLength: 1e-2, wavelength: 1e-1 }).valid, false);
+});
+
+test("darcyPermeability() uses the same constant as the Ergun viscous term", () => {
+  const p = makeParams("rutile-reduced-600c-30m");
+  const eps = p.voidFraction, solid = 1 - eps;
+  assert.equal(ERGUN_VISCOUS_CONSTANT, 150);
+  assert.equal(darcyPermeability(p), Math.pow(eps, 3) * p.dp * p.dp / (150 * solid * solid));
+  // The point of pinning the constant: mu*u/K must reproduce the Ergun viscous
+  // term exactly, so Darcy's law and the reported dP describe one bed.
+  const state = gasState(400, p), K = darcyPermeability(p);
+  const ergunViscous = 150 * state.mu * solid * solid * state.u / (Math.pow(eps, 3) * p.dp * p.dp);
+  assert.ok(Math.abs(state.mu * state.u / K - ergunViscous) <= 1e-12 * ergunViscous,
+    `mu*u/K = ${state.mu * state.u / K} should equal the Ergun viscous term ${ergunViscous}`);
+  assert.equal(darcyPermeability({ ...p, ergunViscousConstant: 180 }), darcyPermeability(p) * 150 / 180);
+  assert.throws(() => darcyPermeability({ ...p, ergunViscousConstant: 0 }), RangeError);
+  // packedBedTransport must report the same permeability it drops into dP.
+  assert.equal(packedBedTransport(400, p).permeability, darcyPermeability(p));
+});
+
+test("solve2D() legacy temperatures are untouched by the flow-field diagnostic", () => {
+  // Stage 1 adds a Darcy solve but does not couple it to the energy equation, so
+  // these must stay bit-for-bit what they were before the flow solver existed.
+  // Values captured on the autoFit mesh from the commit that added them.
+  const p = makeParams("rutile-reduced-600c-30m", { Nr: 15, Nz: 30, maxIter: 3500, tol: 1.5e-3, omega: 1.08 });
+  const sol = solve2D(p);
+  const expected = {
+    center: 826.1530412131374, wall: 502.0457021673843, Tavg: 639.8001257911388,
+    Tout: 552.3499012252433, qgas: 0.41140303109916077, qBoundary: 7.101922904136165,
+    qrad: 18.492709840234983
+  };
+  for (const [key, want] of Object.entries(expected)) {
+    assert.ok(Math.abs(sol[key] - want) <= 1e-9 * Math.abs(want),
+      `${key} drifted: got ${sol[key]}, expected ${want}`);
+  }
+  assert.equal(sol.it, 107);
+});
+
+test("darcyField() reproduces the analytic Darcy pressure drop on an isothermal bed", () => {
+  const p = makeParams("rutile-reduced-600c-30m");
+  const mesh = bedMesh(p), extent = bedExtent(p, mesh), T = 300;
+  const field = darcyField({ p, T: uniformField(p, T), material: mesh.material, dr: mesh.dr, dz: mesh.dz, areasZ: mesh.areasZ });
+  assert.ok(field.converged);
+  const state = gasState(T, p), K = darcyPermeability(p);
+  // Uniform mobility makes the discrete solution exact, so dP = mu*u*L/K holds to
+  // round-off rather than to discretization error.
+  const u = field.massFlow / (state.rho * extent.area);
+  const analytic = state.mu * u * extent.length / K;
+  assert.ok(Math.abs(field.dP - analytic) <= 1e-12 * analytic,
+    `dP=${field.dP} should match mu*u*L/K=${analytic}`);
+  // An isothermal bed cannot redistribute flow: every column carries the same
+  // superficial velocity and nothing crosses a radial face.
+  assert.ok(Math.abs(field.maldistribution - 1) < 1e-12, `maldistribution=${field.maldistribution}`);
+  let maxRadial = 0;
+  for (let j = 0; j < p.Nz; j++) for (let i = 0; i <= p.Nr; i++) maxRadial = Math.max(maxRadial, Math.abs(field.fluxR[j][i]));
+  assert.ok(maxRadial <= 1e-12 * field.massFlow, `radial flux ${maxRadial} should vanish on an isothermal bed`);
+});
+
+test("darcyField() conserves mass discretely and delivers the prescribed flow", () => {
+  const p = makeParams("rutile-reduced-600c-30m");
+  const mesh = bedMesh(p), extent = bedExtent(p, mesh);
+  // Temperature varying in both r and z, so mobility varies axially and the
+  // radial coupling in the pressure equation is actually exercised.
+  const T = Array.from({ length: p.Nz }, (_, j) => Array.from({ length: p.Nr }, (_, i) => {
+    if (mesh.material[j][i] !== 2) return 300;
+    const rn = (i + .5) * mesh.dr / (p.D / 2), zn = (j - extent.jMin) / Math.max(extent.rows - 1, 1);
+    return 200 + 700 * (1 - rn) * (1 - Math.abs(2 * zn - 1));
+  }));
+  const field = darcyField({ p, T, material: mesh.material, dr: mesh.dr, dz: mesh.dz, areasZ: mesh.areasZ });
+  assert.ok(field.converged && field.it > 0, `expected the pressure solve to iterate, it=${field.it}`);
+  assert.ok(field.maxMassImbalance <= 1e-10 * field.massFlow,
+    `per-cell mass imbalance ${field.maxMassImbalance} must vanish for the energy equation to be conservative`);
+  assert.ok(Math.abs(field.outletMassFlow - field.massFlow) <= 1e-10 * field.massFlow,
+    `outlet flow ${field.outletMassFlow} should equal the prescribed ${field.massFlow}`);
+  let maxRadial = 0;
+  for (let j = 0; j < p.Nz; j++) for (let i = 0; i <= p.Nr; i++) maxRadial = Math.max(maxRadial, Math.abs(field.fluxR[j][i]));
+  assert.ok(maxRadial > 1e-4 * field.massFlow, `axially varying mobility should drive radial flow, got ${maxRadial}`);
+  // Warm starting from the converged potential must land on the same answer.
+  const warm = darcyField({ p, T, material: mesh.material, dr: mesh.dr, dz: mesh.dz, areasZ: mesh.areasZ, phi0: field.phi });
+  assert.ok(Math.abs(warm.dP - field.dP) <= 1e-9 * field.dP, `warm start dP=${warm.dP} vs cold ${field.dP}`);
+});
+
+test("darcyField() pushes flow away from a hot core and scales with axial permeability", () => {
+  const p = makeParams("rutile-reduced-600c-30m");
+  const mesh = bedMesh(p), extent = bedExtent(p, mesh);
+  // Hot on the axis, cool at the wall: helium viscosity rises with temperature,
+  // so the central columns resist more and carry less flow. A single plug-flow
+  // stream cannot represent this, which is the reason for solving the field.
+  const T = Array.from({ length: p.Nz }, (_, j) => Array.from({ length: p.Nr }, (_, i) =>
+    mesh.material[j][i] === 2 ? 800 - 600 * ((i + .5) * mesh.dr / (p.D / 2)) : 300));
+  const field = darcyField({ p, T, material: mesh.material, dr: mesh.dr, dz: mesh.dz, areasZ: mesh.areasZ });
+  assert.ok(field.converged);
+  assert.ok(field.columnVelocity[0] < field.columnVelocity[extent.iMax],
+    `hot axis should run slower than the cool wall: ${field.columnVelocity[0]} vs ${field.columnVelocity[extent.iMax]}`);
+  assert.ok(field.maldistribution > 1.1, `expected real maldistribution, got ${field.maldistribution}`);
+  // Doubling the longitudinal permeability halves the pressure drop.
+  const stretched = darcyField({ p: { ...p, permeabilityLongitudinalRatio: 2 }, T, material: mesh.material, dr: mesh.dr, dz: mesh.dz, areasZ: mesh.areasZ });
+  assert.ok(Math.abs(stretched.dP / field.dP - 0.5) < 1e-9, `dP ratio=${stretched.dP / field.dP}, expected 0.5`);
+  assert.throws(() => darcyField({ p: { ...p, permeabilityLongitudinalRatio: -1 }, T, material: mesh.material, dr: mesh.dr, dz: mesh.dz, areasZ: mesh.areasZ }), RangeError);
+});
+
+test("darcyField() degrades gracefully at zero flow and can be switched off", () => {
+  const p = makeParams("rutile-reduced-600c-30m", { flow: 0 });
+  const mesh = bedMesh(p);
+  const field = darcyField({ p, T: uniformField(p, 300), material: mesh.material, dr: mesh.dr, dz: mesh.dz, areasZ: mesh.areasZ });
+  for (const key of ["dP", "massFlow", "outletMassFlow", "uMax", "uMin", "maxMassImbalance"]) {
+    assert.equal(field[key], 0, `${key} should be exactly zero with no flow`);
+  }
+  assert.equal(field.maldistribution, 1);
+  const off = solve2D(makeParams("rutile-reduced-600c-30m", { P: 0, flowMode: "off" }));
+  assert.equal(off.darcy, null);
+  const on = solve2D(makeParams("rutile-reduced-600c-30m", { P: 0 }));
+  assert.ok(on.darcy && Number.isFinite(on.darcy.dP), "the flow field should be reported by default");
 });
