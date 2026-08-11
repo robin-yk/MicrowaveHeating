@@ -156,12 +156,13 @@
     <section id="howto" class="panel" role="tabpanel">
       <p class="page-kicker">Operating sequence</p><h2 class="page-title">How to use the model</h2>
       <p class="page-lede">
-        The model starts from the microwave power the sample actually absorbed (a measured input) and calibrates four
-        effective heat-transfer parameters until the calculated center and wall temperatures match the experiments.
-        It then solves a steady 2D heat balance across the powder bed, quartz tube, flowing gas, and surrounding air,
-        giving the full temperature map and where the power leaves &mdash; gas heating, convection, and radiation.
-        Dielectric properties only decide <em>where</em> that power is deposited inside the bed, never how much.
-        The result is a physics-based estimate, most reliable within the calibrated material, geometry, and power range.
+        The model uses the measured microwave power absorbed by the sample and adjusts four effective heat-transfer
+        parameters so that the calculated center and wall temperatures match the experiments. After calibration, it
+        solves the steady two-dimensional heat balance across the powder bed, quartz tube, flowing gas, and surrounding
+        air to estimate the full temperature map and the heat lost through gas heating, convection, and radiation. The
+        dielectric properties determine how the measured power is distributed within the bed, while the total absorbed
+        power remains an experimental input. The resulting temperature field is therefore a physics-based estimate that
+        is most reliable within the calibrated material, geometry, and power range.
       </p>
       <div class="doc-grid">
         <article class="doc-card"><h3>1 · Select a material profile</h3><p>The selection loads that material's dielectric table, effective thermal parameters, skeletal density, particle diameter, and measured calibration dataset. This release contains reduced-rutile TiO₂ and as-received SiC 60–100 mesh profiles.</p></article>
