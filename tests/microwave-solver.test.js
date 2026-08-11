@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   materialProfiles, clamp, dielectric, kBed, penetrationDepth, solve2D, transportNumbers
-} from "../microwave-solver.js";
+} from "../apps/microwave/solver.js";
 
 // Mirrors microwave.html's parameters() for the two embedded material
 // profiles, using each profile's own defaults instead of guessing values,
