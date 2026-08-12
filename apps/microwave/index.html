@@ -4,9 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Microwave Heating Model — 2D Powder-Bed Temperature Field</title>
+  <link rel="preload" href="../../assets/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../../assets/fonts/roboto.css">
   <style>
     :root{--navy:#102a43;--blue:#00539f;--red:#c53a3a;--gold:#ffd200;--ink:#263746;--muted:#65727e;--line:#d7e0e6;--soft:#f4f7f9;--white:#fff;--green:#2c7a55}
-    *{box-sizing:border-box}html{font:16px Arial,sans-serif;color:var(--ink);background:#edf1f3}body{margin:0;min-width:320px}button,input,select,textarea{font:inherit}
+    *{box-sizing:border-box}html{font:16px Roboto,Arial,sans-serif;color:var(--ink);background:#edf1f3}body{margin:0;min-width:320px}button,input,select,textarea{font:inherit}
     .site-header{background:var(--navy);color:#fff}.head-inner{max-width:1480px;margin:auto;padding:23px 26px;display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap}.eyebrow{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#b8d5e6;margin:0 0 5px}.site-header h1{font-size:clamp(27px,3vw,41px);line-height:1.06;margin:0}.author{font-size:13px;color:#dce9f0;text-align:right}
     .tabs-shell{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line)}.tabs{max-width:1480px;margin:auto;display:flex;overflow-x:auto;padding:0 18px}.tab{border:0;border-bottom:4px solid transparent;background:transparent;color:var(--muted);padding:14px 15px 13px;white-space:nowrap;font-size:16px;font-weight:700;cursor:pointer}.tab:hover,.tab:focus-visible{color:var(--navy);background:var(--soft)}.tab.active{color:var(--navy);border-color:var(--blue);background:#fff}
     main{max-width:1480px;margin:auto;padding:22px 24px 42px}.panel{display:none}.panel.active{display:block}.page-kicker{margin:0 0 5px;color:var(--blue);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.page-title{margin:0 0 6px;color:var(--navy);font-size:clamp(24px,2.4vw,34px)}.page-lede{max-width:1050px;margin:0 0 18px;color:var(--muted);line-height:1.5}
@@ -446,15 +448,15 @@
       if(2*sol.p.Nr<=30&&sol.p.Nz<=45){ctx.strokeStyle="rgba(16,42,67,.12)";ctx.lineWidth=.5;for(let c=0;c<=2*sol.p.Nr;c++){const x=ml+c*cw;ctx.beginPath();ctx.moveTo(x,mt);ctx.lineTo(x,mt+ph);ctx.stroke();}for(let j=0;j<=sol.p.Nz;j++){const y=mt+j*ch;ctx.beginPath();ctx.moveTo(ml,y);ctx.lineTo(ml+pw,y);ctx.stroke();}}
       ctx.strokeStyle="#102a43";ctx.lineWidth=2;ctx.strokeRect(px(-sol.R),pz(sol.p.H/2),px(sol.R)-px(-sol.R),pz(-sol.p.H/2)-pz(sol.p.H/2));
       [sol.R,sol.Ro,-sol.R,-sol.Ro].forEach(x=>{ctx.beginPath();ctx.moveTo(px(x),mt);ctx.lineTo(px(x),mt+ph);ctx.stroke();});ctx.strokeRect(ml,mt,pw,ph);
-      ctx.fillStyle="#263746";ctx.font="16px Arial";ctx.textAlign="center";ctx.fillText("Horizontal position x (mm)",ml+pw/2,H-15);
+      ctx.fillStyle="#263746";ctx.font="16px Roboto, Arial";ctx.textAlign="center";ctx.fillText("Horizontal position x (mm)",ml+pw/2,H-15);
       ctx.save();ctx.translate(21,mt+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText("Vertical position z (mm)",0,0);ctx.restore();
       ctx.textAlign="center";[-sol.Rd,-sol.Ro,-sol.R,0,sol.R,sol.Ro,sol.Rd].forEach(x=>{const xp=px(x);ctx.strokeStyle="#aebbc4";ctx.beginPath();ctx.moveTo(xp,mt+ph);ctx.lineTo(xp,mt+ph+6);ctx.stroke();ctx.fillStyle="#64717d";ctx.fillText(fmt(x*1000,1),xp,mt+ph+22);});
       [-sol.Hd/2,-sol.p.H/2,0,sol.p.H/2,sol.Hd/2].forEach(z=>{const y=pz(z);ctx.textAlign="right";ctx.fillStyle="#64717d";ctx.fillText(fmt(z*1000,1),ml-9,y+5);});
       const lx=W-43,ly=mt+20,lh=ph-40;
       if(mode!=="material"){for(let y=0;y<lh;y++){ctx.fillStyle=colorMap(1-y/lh,0,1);ctx.fillRect(lx,ly+y,18,1);}ctx.strokeStyle="#83919b";ctx.strokeRect(lx,ly,18,lh);ctx.textAlign="left";ctx.fillStyle="#263746";ctx.fillText(mode==="temperature"?fmt(max,0)+" °C":fmt(max/1e6,2)+" W/cm³",lx-6,ly-8);ctx.fillText(mode==="temperature"?fmt(min,0)+" °C":"0",lx-6,ly+lh+18);}else{ctx.textAlign="left";["Air","Tube gas",sol.p.materialFormula,"Quartz"].forEach((name,i)=>{ctx.fillStyle=materialColor[i];ctx.fillRect(lx-12,ly+i*27,17,17);ctx.fillStyle="#263746";ctx.fillText(name,lx+10,ly+13+i*27);});}
       const flowX=px(0),flowTop=pz(sol.Hd/2-1.2e-3),flowBottom=pz(sol.p.H/2+1.2e-3);
-      ctx.save();ctx.lineCap="round";ctx.strokeStyle="rgba(255,255,255,.9)";ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(flowX,flowTop);ctx.lineTo(flowX,flowBottom);ctx.stroke();ctx.strokeStyle="#102a43";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(flowX,flowTop);ctx.lineTo(flowX,flowBottom);ctx.stroke();ctx.fillStyle="#102a43";ctx.beginPath();ctx.moveTo(flowX,flowBottom+11);ctx.lineTo(flowX-8,flowBottom-3);ctx.lineTo(flowX+8,flowBottom-3);ctx.closePath();ctx.fill();ctx.font="700 16px Arial";ctx.textAlign="left";ctx.fillText("Gas flow",flowX+13,flowTop+20);ctx.restore();
-      ctx.fillStyle="#102a43";ctx.beginPath();ctx.arc(px(sol.p.fbgR),pz(sol.p.fbgZ),5,0,2*Math.PI);ctx.fill();ctx.font="16px Arial";ctx.textAlign="left";ctx.fillText("FBG",px(sol.p.fbgR)+9,pz(sol.p.fbgZ)-8);
+      ctx.save();ctx.lineCap="round";ctx.strokeStyle="rgba(255,255,255,.9)";ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(flowX,flowTop);ctx.lineTo(flowX,flowBottom);ctx.stroke();ctx.strokeStyle="#102a43";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(flowX,flowTop);ctx.lineTo(flowX,flowBottom);ctx.stroke();ctx.fillStyle="#102a43";ctx.beginPath();ctx.moveTo(flowX,flowBottom+11);ctx.lineTo(flowX-8,flowBottom-3);ctx.lineTo(flowX+8,flowBottom-3);ctx.closePath();ctx.fill();ctx.font="700 16px Roboto, Arial";ctx.textAlign="left";ctx.fillText("Gas flow",flowX+13,flowTop+20);ctx.restore();
+      ctx.fillStyle="#102a43";ctx.beginPath();ctx.arc(px(sol.p.fbgR),pz(sol.p.fbgZ),5,0,2*Math.PI);ctx.fill();ctx.font="16px Roboto, Arial";ctx.textAlign="left";ctx.fillText("FBG",px(sol.p.fbgR)+9,pz(sol.p.fbgZ)-8);
       canvas._map={ml,mt,pw,ph,px,pz};
     }
     function linePath(points,x,y){return points.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join(" ");}
