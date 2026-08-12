@@ -274,7 +274,7 @@
           <div class="card"><div class="stat-label">Eq. S39 reconstructed temperature</div><div id="s39-temp" class="stat-value">—</div><div class="stat-note">one-temperature reduction of the latest 2D field</div></div>
           <div class="card"><div class="stat-label">2D model volume-average temperature</div><div id="s39-2davg" class="stat-value">—</div><div class="stat-note">from the latest spatial calculation</div></div>
           <div class="card"><div class="stat-label">Reduction reconstruction error</div><div id="s39-diff" class="stat-value">—</div><div class="stat-note">Eq. S39 result minus the 2D volume average</div></div>
-          <div class="card"><div class="stat-label">Radial / axial-plus-gas conductance</div><div id="s39-g" class="stat-value">—</div><div class="stat-note">2D-derived equivalent values, W/K</div></div>
+          <div class="card"><div class="stat-label">Radial · axial-plus-gas conductance</div><div id="s39-g" class="stat-value">—</div><div class="stat-note">2D-derived equivalent values, W/K</div></div>
         </div>
       </details>
 
@@ -497,7 +497,7 @@
       if(!currentSolution)return;
       const sol=currentSolution,p=sol.p,R=p.D/2,Cgeom=Math.PI,avg=sol.Tavg,dT=Math.max(0,avg-p.Ta),ks=kBed(avg,p),Gtube2D=dT>1e-9?Math.max(0,sol.qRadialBed/dT):0,Gface2D=dT>1e-9?Math.max(0,(sol.qAxialBed+sol.qgas)/dT):0,tubeCapacity=2*Cgeom*p.H*ks,ratio=clamp(Gtube2D/Math.max(tubeCapacity,1e-30),0,.999999),Bi=ratio/(1-ratio),hface=Gface2D/(2*Math.PI*R*R),Gtube=2*Cgeom*p.H*ks*Bi/(1+Bi),Gface=2*hface*Math.PI*R*R,Ts=p.Ta+p.P/Math.max(Gtube+Gface,1e-30);
       $("s39-k").value=ks.toPrecision(6);$("s39-bi").value=Bi.toPrecision(6);$("s39-cg").value=Cgeom.toPrecision(6);$("s39-hface").value=hface.toPrecision(6);
-      $("s39-temp").textContent=fmt(Ts,1)+" °C";$("s39-2davg").textContent=fmt(avg,1)+" °C";$("s39-diff").textContent=fmt(Ts-avg,2)+" °C";$("s39-g").textContent=fmt(Gtube,5)+" / "+fmt(Gface,5);
+      $("s39-temp").textContent=fmt(Ts,1)+" °C";$("s39-2davg").textContent=fmt(avg,1)+" °C";$("s39-diff").textContent=fmt(Ts-avg,2)+" °C";$("s39-g").textContent=fmt(Gtube,5)+" · "+fmt(Gface,5);
       $("s39-derivation-note").textContent="Latest "+p.materialLabel+" 2D solution · radial sample→quartz heat "+fmt(sol.qRadialBed,3)+" W · axial bed heat "+fmt(sol.qAxialBed,3)+" W · gas sensible heat "+fmt(sol.qgas,3)+" W · automatically reduced to Eq. S39.";
     }
 
