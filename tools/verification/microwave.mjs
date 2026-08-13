@@ -1,17 +1,17 @@
 // Numerical verification of the microwave 2D solver
 // (apps/microwave/solver.js: solve2D). Three studies, printed as markdown:
 //
-//   1. Radial-parabola benchmark — public knobs alone can reduce solve2D to
+//   1. Radial-parabola benchmark: public knobs alone can reduce solve2D to
 //      pure conduction with a uniform bed source (manual constant bed k,
 //      radiation off, gas exchange off, near-uniform field and penetration
 //      depth), so the mid-plane bed profile must match T(r)-T(0) =
 //      -q r^2/(4 k_bed); the residual is finite-bed axial leakage, which
 //      must shrink as the bed is made longer.
-//   2. Physical-case grid convergence — the app's default calibrated case on
+//   2. Physical-case grid convergence: the app's default calibrated case on
 //      a doubling grid sequence; Richardson extrapolation for the observed
 //      order and the default 30×60 grid's distance from the extrapolated
 //      answer, plus energy-balance closure per grid.
-//   3. Darcy flow — discrete mass conservation of the flow field (the solver
+//   3. Darcy flow: discrete mass conservation of the flow field (the solver
 //      reports its own worst per-cell imbalance) per grid.
 //
 // A full-domain manufactured solution is deliberately out of scope here: the
@@ -119,7 +119,7 @@ export function physicalConvergence() {
 
 // ---------------------------------------------------------------- report
 function main() {
-  console.log("## Microwave 2D solver — numerical verification\n");
+  console.log("## Microwave 2D solver: numerical verification\n");
 
   console.log("### 1. Radial parabola (pure-conduction reduction)\n");
   const parabolaRows = [];
@@ -129,7 +129,7 @@ function main() {
   }
   console.log(markdownTable(["case", "analytic center→surface rise", "worst relative mismatch"], parabolaRows) + "\n");
 
-  console.log("### 2. Default calibrated case — grid sensitivity\n");
+  console.log("### 2. Default calibrated case: grid sensitivity\n");
   const { rows, rich } = physicalConvergence();
   console.log(markdownTable(
     ["grid", "center T (°C)", "wall T (°C)", "avg bed T (°C)", "energy closure", "Darcy mass imbalance", "sweeps"],
@@ -140,7 +140,7 @@ function main() {
   if (asymptotic) {
     console.log(`Richardson (avg bed T): order ${fix(rich.Tavg.p, 2)}, extrapolated ${fix(rich.Tavg.qExtrap, 2)} °C, finest-grid error ${sci(rich.Tavg.fineError, 2)}`);
   } else {
-    console.log(`Richardson order not meaningful here (grid-to-grid differences are not yet asymptotic — the near-wall exponential source deposition and T^4 wall radiation are resolved progressively with the grid). Reporting sensitivity against the finest grid instead:`);
+    console.log(`Richardson order not meaningful here (grid-to-grid differences are not yet asymptotic: the near-wall exponential source deposition and T^4 wall radiation are resolved progressively with the grid). Reporting sensitivity against the finest grid instead:`);
   }
   console.log(`Default 30×60 grid vs finest ${last.grid}: center T differs by ${fix(Math.abs(rows[0].center - last.center), 2)} K (${fix(100 * Math.abs(rows[0].center - last.center) / (last.center - 20), 2)}% of the rise), avg bed T by ${fix(Math.abs(rows[0].Tavg - last.Tavg), 2)} K, wall T by ${fix(Math.abs(rows[0].wall - last.wall), 2)} K.`);
 }

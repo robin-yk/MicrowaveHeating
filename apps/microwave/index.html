@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Microwave Heating Model — 2D Powder-Bed Temperature Field</title>
+  <title>Microwave Heating Model: 2D Powder-Bed Temperature Field</title>
   <link rel="preload" href="../../assets/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="../../assets/fonts/roboto.css">
   <style>
@@ -132,7 +132,7 @@
       <h3 class="section-title">Measured-temperature comparison for the selected material</h3>
       <p id="material-profile-note" class="page-lede">The selected profile supplies its dielectric table, thermal parameters, skeletal density, particle diameter, and measured power–temperature dataset together.</p>
       <svg id="fit-chart" class="profile-svg fit-chart" viewBox="0 0 760 470" role="img" aria-label="Measured and calculated center and quartz-wall temperatures across absorbed power"></svg>
-      <p class="fit-rmse">Model-versus-data root-mean-square error — FBG center <strong id="fit-center">—</strong> · quartz wall <strong id="fit-wall">—</strong> <span id="fit-hint">(press Compare below to add the calculated curves)</span></p>
+      <p class="fit-rmse">Model-versus-data root-mean-square error: FBG center <strong id="fit-center">—</strong> · quartz wall <strong id="fit-wall">—</strong> <span id="fit-hint">(press Compare below to add the calculated curves)</span></p>
       <p id="calibration-disclosure" class="fit-note"></p>
       <details class="secondary-diagnostics">
         <summary>Compare, recalibrate, or replace the dataset</summary>
@@ -314,7 +314,7 @@
         <tr><td>Volume-averaged porous bed</td><td>Bed cells use porosity-adjusted ε* and k<sub>eff</sub>; particle and channel interfaces are not meshed.</td><td>Partly aligned</td><td>No unit-cell closure calculation or explicit check that l<sub>c</sub>≪L<sub>c</sub> and l<sub>c</sub>≪λ.</td></tr>
         <tr><td>Harmonic Maxwell/Helmholtz field</td><td>A Gaussian TE<sub>111</sub> shape and penetration weighting prescribe relative deposition, then normalize it to entered P<sub>abs</sub>.</td><td>Not solved</td><td>No E/H field, interface continuity, cavity coupling, resonance detuning, or prediction of absorbed power.</td></tr>
         <tr><td>Effective permittivity tensor</td><td>Complex Looyenga mixing supplies a temperature- and porosity-dependent scalar ε*. The closure exposes separate longitudinal anisotropy ratios for ε′ and ε″, each defaulting to isotropic.</td><td>Partial closure</td><td>Neither ratio is measured or homogenized here, so the tensor is isotropic unless one is supplied; ε″ deliberately does not inherit the ε′ ratio, since a shared ratio would assert a direction-independent loss tangent.</td></tr>
-        <tr><td>Variable-density flow and Darcy momentum</td><td>Continuity with Darcy substituted, ∇·(λ∇P)=0 with λ=ρK/μ, is solved on the bed for a pressure and superficial-velocity field with a longitudinal/transverse permeability tensor. Both bed end faces are isobars and the prescribed mass flow is met exactly; the discrete per-cell mass balance closes to round-off.</td><td>Solved, not yet coupled</td><td>The field is reported only: the energy equation still uses the gas-effectiveness closure, so the velocity field does not feed back into temperature. Momentum is Darcy alone — no Navier–Stokes, and the open tube above and below the bed is still treated as stagnant conducting gas.</td></tr>
+        <tr><td>Variable-density flow and Darcy momentum</td><td>Continuity with Darcy substituted, ∇·(λ∇P)=0 with λ=ρK/μ, is solved on the bed for a pressure and superficial-velocity field with a longitudinal/transverse permeability tensor. Both bed end faces are isobars and the prescribed mass flow is met exactly; the discrete per-cell mass balance closes to round-off.</td><td>Solved, not yet coupled</td><td>The field is reported only: the energy equation still uses the gas-effectiveness closure, so the velocity field does not feed back into temperature. Momentum is Darcy alone (no Navier–Stokes), and the open tube above and below the bed is still treated as stagnant conducting gas.</td></tr>
         <tr><td>Effective thermal tensor and local thermal equilibrium (LTE)</td><td>The bed has k<sub>z</sub>/k<sub>r</sub>, but a separate axially marched bulk-gas temperature exchanges heat with one bed temperature through Wakao UA.</td><td>Different closure</td><td>This is a reduced two-temperature gas/bed closure, not strict LTE and not separate pointwise gas/solid energy PDEs; hydrodynamic thermal dispersion is not identified separately.</td></tr>
         <tr><td>Transient effective heat capacity</td><td>(ρC<sub>p</sub>)<sub>eff</sub> is reported as a diagnostic.</td><td>Not solved</td><td>The temperature solve is steady, so storage and transient microwave ramping are absent.</td></tr>
         <tr><td>Species dispersion and catalytic flux</td><td>No concentration variables or reactions.</td><td>Absent</td><td>No D*<sub>i</sub>, homogeneous source, interfacial catalytic flux, conversion, or heat-of-reaction coupling.</td></tr>
@@ -334,7 +334,7 @@
 
       <h3 class="calc-section">15 · Physical scope and limitations</h3>
       <div class="doc-grid"><article class="doc-card"><h3>Directly resolved</h3><p>Radial and vertical temperatures in sample, quartz, tube gas, and outside air; porosity-adjusted dielectric and thermal properties; Wakao gas transfer; Ergun pressure correction; contact resistance; quartz radiation; and Churchill–Chu boundary convection.</p></article><article class="doc-card"><h3>Calculated diagnostics</h3><p>Reynolds, Prandtl, Péclet, Graetz, Nusselt, Darcy, Euler, Archimedes, Grashof, Rayleigh, and Biot numbers; permeability; specific gas–solid area; UA; effective volumetric heat capacity; Ergun pressure drop; and the Darcy pressure and superficial-velocity field with its flow-maldistribution ratio.</p></article><article class="doc-card"><h3>Absent from the temperature solver</h3><p>Maxwell field solution, resonance detuning, cavity-wall microwave absorption, Navier–Stokes momentum, advective coupling of the solved Darcy field back into the energy balance, particle-scale hot spots, transient heat capacity, species and reaction equations, temperature-dependent quartz properties, thermometry bias, and prediction intervals for a new experiment.</p></article></div>
-      <div class="warning"><strong>Measured regime, so the next stage need not re-derive it</strong> (both embedded profiles at their default settings): the gas carries only <strong>1.1–1.5% of absorbed power</strong>, outer convection 12–27%, and <strong>quartz radiation 71–87%</strong> — and that dominant radiation channel is fitted through the empirical radiating-area multiplier, not derived. Coupling the Darcy field into the energy equation therefore changes a small channel; the largest remaining physics gap is the radiation closure, not the flow. Supporting numbers: Re<sub>p</sub> ≈ 3×10⁻³–2×10⁻², Pe<sub>p</sub> ≈ 2×10⁻³–1×10⁻², UA<sub>gs</sub>/C<sub>g</sub> ≈ 3×10⁴–3×10⁵, ΔP ≈ 27–170 Pa (under 0.2% of inlet pressure), axial advection Péclet 0.01–0.25.</div>
+      <div class="warning"><strong>Measured regime, so the next stage need not re-derive it</strong> (both embedded profiles at their default settings): the gas carries only <strong>1.1–1.5% of absorbed power</strong>, outer convection 12–27%, and <strong>quartz radiation 71–87%</strong>; that dominant radiation channel is fitted through the empirical radiating-area multiplier, not derived. Coupling the Darcy field into the energy equation therefore changes a small channel; the largest remaining physics gap is the radiation closure, not the flow. Supporting numbers: Re<sub>p</sub> ≈ 3×10⁻³–2×10⁻², Pe<sub>p</sub> ≈ 2×10⁻³–1×10⁻², UA<sub>gs</sub>/C<sub>g</sub> ≈ 3×10⁴–3×10⁵, ΔP ≈ 27–170 Pa (under 0.2% of inlet pressure), axial advection Péclet 0.01–0.25.</div>
       <div class="warning">Thermal-closure reference: M. P. Bobbin et al., <em>Chemical Engineering Journal</em> 534 (2026) 175266, DOI 10.1016/j.cej.2026.175266. Supporting Information Eq. S39 supplies the reduced-order equation. This page derives its equivalent coefficients from the implemented 2D finite-volume heat fluxes.</div>
     </section>
 
@@ -415,7 +415,7 @@
          details:["Re<sub>p</sub> = "+s3(n.Rep)+" at superficial velocity "+s3(n.u)+" m/s and mean tube-gas temperature "+s3(n.TgK-273.15)+" °C",
                   "Nu<sub>p</sub> = "+s3(n.NuP)+", including only "+s3(Math.max(0,n.NuP-2))+" from flow",
                   "h<sub>gs</sub> = "+s3(n.hParticle)+" W/m²·K",
-                  "η<sub>gs</sub> = "+s3(n.gasEffectiveness)+" — fraction of the maximum possible gas sensible-heat pickup over the whole bed, not a local gas–solid equality",
+                  "η<sub>gs</sub> = "+s3(n.gasEffectiveness)+", the fraction of the maximum possible gas sensible-heat pickup over the whole bed, not a local gas–solid equality",
                   "Closure: "+gasClosure]},
         {process:"Heat transfer to quartz",
          diagnostic:"Bi<sub>contact</sub> = "+s3(n.BiContact),
@@ -427,7 +427,7 @@
          diagnostic:"Bi<sub>rad</sub> = "+s3(n.BiRadiation)+" · Ra<sub>L</sub> = "+s3(n.Ra)+" → Nu<sub>L</sub> = "+s3(n.NuAir),
          meaning:"Radiation and natural convection remove heat from the quartz tube.",
          result:"<strong>"+s3(100*sol.qrad/Pabs)+"% radiation</strong> · <strong>"+s3(100*sol.qBoundary/Pabs)+"% convection</strong>",
-         details:["Ra<sub>L</sub> = "+s3(n.Ra)+" — "+(n.Ra<1e9?"laminar":"transition/turbulent")+" natural-convection range",
+         details:["Ra<sub>L</sub> = "+s3(n.Ra)+", "+(n.Ra<1e9?"laminar":"transition/turbulent")+" natural-convection range",
                   "Nu<sub>L</sub> = "+s3(n.NuAir)+" → h<sub>natural</sub> = "+s3(n.hNatural)+" W/m²·K · applied boundary h = "+s3(n.hBoundaryUsed)+" W/m²·K",
                   "h<sub>rad</sub> = "+s3(n.hrad)+" W/m²·K",
                   "Closure: "+boundaryClosure]},
@@ -462,7 +462,7 @@
       document.querySelectorAll("#dimensionless-body tr.diag-row").forEach(row=>{row.addEventListener("click",()=>{const detail=row.nextElementSibling;detail.hidden=!detail.hidden;row.classList.toggle("open",!detail.hidden);});});
       $("dimensionless-secondary-body").innerHTML=secondaryRows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${sig(r[2])}</td><td>${r[3]}</td></tr>`).join("");
       const flowScope=$("flow-scope");
-      if(dc){flowScope.hidden=false;flowScope.innerHTML="<strong>Flow-model scope</strong> — The temperature solver uses the gas-effectiveness model above. The separately calculated Darcy field reports ΔP = "+s3(dc.dP)+" Pa and a superficial velocity of "+s3(dc.uMin)+"–"+s3(dc.uMax)+" m/s. These values currently do not affect the temperature solution.";}
+      if(dc){flowScope.hidden=false;flowScope.innerHTML="<strong>Flow-model scope</strong>: The temperature solver uses the gas-effectiveness model above. The separately calculated Darcy field reports ΔP = "+s3(dc.dP)+" Pa and a superficial velocity of "+s3(dc.uMin)+"–"+s3(dc.uMax)+" m/s. These values currently do not affect the temperature solution.";}
       else{flowScope.hidden=true;flowScope.innerHTML="";}
     }
 
@@ -515,7 +515,7 @@
       const a1=axes(-sol.Rd*1000,sol.Rd*1000,top1,h1,"Horizontal position x (mm)","Radial cut through full domain at z = 0");
       out+=`<path d="${linePath(radial,a1.x,a1.y)}" fill="none" stroke="#c53a3a" stroke-width="3"/><circle cx="${a1.x(sol.R*1000)}" cy="${a1.y(sol.wall)}" r="4" fill="#2878a5"/><text x="${a1.x(sol.R*1000)+8}" y="${a1.y(sol.wall)-9}" fill="#263746" font-size="15">quartz wall</text>`;
       const lim=sol.Hd/2*1000,a2=axes(-lim,lim,top2,h2,"Vertical position z (mm)","Vertical centerline and quartz wall");
-      out+=`<path d="${linePath(axial,a2.x,a2.y)}" fill="none" stroke="#c53a3a" stroke-width="3"/><path d="${linePath(qax,a2.x,a2.y)}" fill="none" stroke="#2878a5" stroke-width="2.5"/><text x="${W-22}" y="${top2+17}" text-anchor="end" fill="#263746" font-size="15">tube centerline — red · quartz wall — blue</text><text x="18" y="250" transform="rotate(-90 18 250)" text-anchor="middle" fill="#263746" font-size="15">Temperature (°C)</text>`;
+      out+=`<path d="${linePath(axial,a2.x,a2.y)}" fill="none" stroke="#c53a3a" stroke-width="3"/><path d="${linePath(qax,a2.x,a2.y)}" fill="none" stroke="#2878a5" stroke-width="2.5"/><text x="${W-22}" y="${top2+17}" text-anchor="end" fill="#263746" font-size="15">tube centerline: red · quartz wall: blue</text><text x="18" y="250" transform="rotate(-90 18 250)" text-anchor="middle" fill="#263746" font-size="15">Temperature (°C)</text>`;
       svg.innerHTML=out;
     }
     function renderEnergy(sol){
@@ -543,7 +543,7 @@
 
     function experimentRows(){return parseRows($("experiment-data").value,3);}
 
-    /* Editable calibration table — the hidden #experiment-data textarea stays the
+    /* Editable calibration table: the hidden #experiment-data textarea stays the
        single source of truth so parseRows, profiles, and file import are unchanged. */
     function calAddRow(values){
       const tr=document.createElement("tr");
@@ -611,7 +611,7 @@
         out+=`<path d="${path("center")}" fill="none" stroke="#c53a3a" stroke-width="2.6" stroke-dasharray="7 5"/><path d="${path("wall")}" fill="none" stroke="#2878a5" stroke-width="2.6" stroke-dasharray="7 5"/>`;
       }
       fit.results.forEach(r=>{out+=`<circle cx="${x(r.P)}" cy="${y(r.centerObs)}" r="4.5" fill="#c53a3a"/><rect x="${x(r.P)-4}" y="${y(r.wallObs)-4}" width="8" height="8" fill="#2878a5"/>`;});
-      const legend=hasCalc?"FBG center: red circles · quartz wall: blue squares · calculated curves: dashed":"Measured — FBG center: red circles · quartz wall: blue squares";
+      const legend=hasCalc?"FBG center: red circles · quartz wall: blue squares · calculated curves: dashed":"Measured · FBG center: red circles · quartz wall: blue squares";
       out+=`<line x1="${m.l}" y1="${H-m.b}" x2="${W-m.r}" y2="${H-m.b}" stroke="#263746"/><line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${H-m.b}" stroke="#263746"/><text x="${m.l+iw/2}" y="${H-10}" text-anchor="middle" fill="#263746" font-size="14">Sample absorbed power (W)</text><text x="16" y="${m.t+ih/2}" transform="rotate(-90 16 ${m.t+ih/2})" text-anchor="middle" fill="#263746" font-size="14">Temperature (°C)</text><text x="${W-m.r}" y="${m.t+14}" text-anchor="end" fill="#263746" font-size="12">${legend}</text>`;
       svg.innerHTML=out;
     }
@@ -620,7 +620,7 @@
     function renderParameterTable(){
       const fitBounds=materialProfiles[$("material").value].fitBounds;
       $("parameter-body").innerHTML=Object.keys(fitBounds).map(k=>`<tr><td>${fitLabels[k]}</td><td>${fitBounds[k][0]}–${fitBounds[k][1]}</td><td>${fmt(num(fitIds[k]),4)}</td></tr>`).join("");
-      $("calibration-disclosure").textContent="The temperature field above uses this material's calibrated effective values — kᵣ = "+fmt(num("k200"),2)+" / "+fmt(num("k500"),2)+" / "+fmt(num("k800"),2)+" W·m⁻¹·K⁻¹ at 200 / 500 / 800 °C and radiating-area multiplier "+fmt(num("rad-area"),2)+" — fitted to the measured dataset shown here.";
+      $("calibration-disclosure").textContent="The temperature field above uses this material's calibrated effective values, kᵣ = "+fmt(num("k200"),2)+" / "+fmt(num("k500"),2)+" / "+fmt(num("k800"),2)+" W·m⁻¹·K⁻¹ at 200 / 500 / 800 °C and radiating-area multiplier "+fmt(num("rad-area"),2)+", fitted to the measured dataset shown here.";
     }
     function evaluateCurrent(){
       const st=$("fit-status");st.textContent="Calculating every experimental power level…";st.className="status";

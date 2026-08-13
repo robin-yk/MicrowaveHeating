@@ -1,6 +1,6 @@
 // Microwave heating numeric core: dielectric mixing, bed conductivity, gas
 // transport, and the 2D axisymmetric FVM steady-state thermal solver behind
-// microwave.html. Pure functions of plain input objects — no DOM access —
+// microwave.html. Pure functions of plain input objects, with no DOM access,
 // so this module can be imported directly by microwave.html (as an ES
 // module) or by a Node test runner.
 "use strict";
