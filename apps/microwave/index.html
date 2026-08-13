@@ -161,18 +161,16 @@
     <section id="howto" class="panel" role="tabpanel">
       <p class="page-kicker">Operating sequence</p><h2 class="page-title">How to use the model</h2>
       <p class="page-lede">
-        The model uses the measured microwave power absorbed by the sample and adjusts four effective heat-transfer
-        parameters so that the calculated center and wall temperatures match the experiments. After calibration, it
-        solves the steady two-dimensional heat balance across the powder bed, quartz tube, flowing gas, and surrounding
-        air to estimate the full temperature map and the heat lost through gas heating, convection, and radiation. The
-        dielectric properties determine how the measured power is distributed within the bed, while the total absorbed
-        power remains an experimental input. The resulting temperature field is therefore a physics-based estimate that
-        is most reliable within the calibrated material, geometry, and power range.
+        The model takes the measured power absorbed by the sample, calibrates four effective heat-transfer parameters
+        against the measured center and wall temperatures, and then solves the steady two-dimensional heat balance
+        across the bed, quartz tube, flowing gas, and surrounding air. Dielectric properties only set how that power is
+        distributed inside the bed; the total is always the experimental input. The resulting temperature map is most
+        reliable within the calibrated material, geometry, and power range.
       </p>
       <div class="doc-grid">
         <article class="doc-card"><h3>1 · Select a material profile</h3><p>The selection loads that material's dielectric table, effective thermal parameters, skeletal density, particle diameter, and measured calibration dataset. This release contains reduced-rutile TiO₂ and as-received SiC 60–100 mesh profiles.</p></article>
         <article class="doc-card"><h3>2 · Enter sample-absorbed power</h3><p>Use microwave power absorbed inside the sample. Forward generator power minus reflected power also contains cavity-wall absorption; use that difference only after determining the sample fraction.</p></article>
-        <article class="doc-card"><h3>3 · Confirm geometry and transport inputs</h3><p>Enter diameter, height, mass, gas, and flow. Bed volume is calculated automatically as πD²L/4; advanced controls contain particle diameter and gas pressure. These values determine bed void fraction, superficial velocity, pressure drop, and dimensionless flow groups.</p></article>
+        <article class="doc-card"><h3>3 · Confirm geometry and transport inputs</h3><p>Enter diameter, height, mass, gas, and flow. Bed volume is calculated as πD²L/4; advanced controls contain particle diameter and gas pressure. Together these set void fraction, superficial velocity, and the flow groups.</p></article>
         <article class="doc-card"><h3>4 · Calculate and inspect temperatures</h3><p>The map shows sample, quartz, tube gas, and outside air. Read the FBG-coordinate temperature, quartz wall, sample volume average, center-to-wall difference, and gas outlet.</p></article>
         <article class="doc-card"><h3>5 · Inspect transport and heat balance</h3><p>Use Reynolds, Péclet, Nusselt, Darcy, Rayleigh, and Biot numbers to identify the controlling transport regime. Gas heating, outer convection, and radiation should sum to absorbed power.</p></article>
         <article class="doc-card"><h3>6 · Compare with measurements</h3><p>The comparison section now belongs to the 2D page. Each material retains its own calibration data; a CSV upload replaces only the selected material's dataset for the current session.</p></article>
