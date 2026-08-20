@@ -238,24 +238,25 @@ electromagnetic solver would change a number.
 
 **Table S_x.4 — Response of the two thermometers to the deposition profile.**
 `P_sample` held at 26 W while the bed's ε″(T) is scaled by the factor in the
-first column, driving the penetration depth from two bed radii down to 0.15.
+first column, driving the penetration depth (evaluated at the bed-centre temperature)
+from 1.85 bed radii down to 0.15.
 `T_max` is the hottest bed cell anywhere in the bed and `r(T_max)` its radial
 position; the last column is the fraction of the deposited power landing in the
 outer 20 % of the bed radius.
 
 | ε″ scaling | δ_p (mm) | δ_p/R | T_wall (°C) | T_center (°C) | T_max (°C) | r(T_max) (mm) | power in outer 20 % |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| ×1  | 10.15 | 2.03 | 496 | 811 | 812 | 0.3 | 31 % |
-| ×2  |  5.71 | 1.14 | 496 | 788 | 789 | 0.3 | 34 % |
-| ×4  |  3.51 | 0.70 | 497 | 758 | 759 | 0.3 | 39 % |
-| ×8  |  2.30 | 0.46 | 497 | 724 | 725 | 0.3 | 45 % |
-| ×16 |  1.57 | 0.31 | 498 | 689 | 691 | 1.3 | 54 % |
-| ×32 |  1.09 | 0.22 | 499 | 656 | 661 | 2.3 | 64 % |
-| ×64 |  0.76 | 0.15 | 500 | 627 | 640 | 3.3 | 75 % |
+| ×1  | 9.25 | 1.85 | 496 | 811 | 813 | 0.3 | 31 % |
+| ×2  | 5.25 | 1.05 | 496 | 788 | 789 | 0.3 | 34 % |
+| ×4  | 3.25 | 0.65 | 497 | 758 | 759 | 0.3 | 39 % |
+| ×8  | 2.14 | 0.43 | 497 | 724 | 725 | 0.3 | 45 % |
+| ×16 | 1.49 | 0.30 | 498 | 689 | 691 | 1.3 | 54 % |
+| ×32 | 1.05 | 0.21 | 499 | 656 | 662 | 2.3 | 64 % |
+| ×64 | 0.75 | 0.15 | 500 | 628 | 640 | 3.3 | 75 % |
 
 Over a 64-fold change in loss at constant power — a swing from volumetric
 heating to a pronounced surface skin — `T_wall` moves 4 K, within the
-pyrometer's own scatter, while `T_center` moves 184 K.
+pyrometer's own scatter, while `T_center` moves 183 K.
 
 Holding $P_{\text{sample}}$ fixed and scaling the dielectric loss over a factor
 of 64 — which changes the penetration depth from several bed radii to a thin
@@ -272,11 +273,11 @@ This is not a defect. It is what makes the pair of thermometers informative:
 readings isolates the deposition profile. Section S_x.7 uses the first half of
 that statement as a consistency check on the measured series.
 
-A secondary consequence concerns the FBG itself. Down to $\delta_p/R \approx 0.46$
+A secondary consequence concerns the FBG itself. Down to $\delta_p/R \approx 0.43$
 the hottest cell in the bed is the on-axis cell and the FBG reads the maximum to
-within 1 K. Below that the maximum migrates outward — $r = 1.3$ mm at
-$\delta_p/R = 0.31$, 3.3 mm at 0.15 — and the on-axis FBG under-reads it by
-2 K, 5 K and 13 K at the last three rows of Table S_x.4. The effect is real but
+within 2 K. Below that the maximum migrates outward — $r = 1.3$ mm at
+$\delta_p/R = 0.30$, 3.3 mm at 0.15 — and the on-axis FBG under-reads it by
+2 K, 6 K and 12 K over the last three rows of Table S_x.4. The effect is real but
 small compared with the FBG-to-average gap of Section S_x.5, and it changes no
 conclusion here. It is reported so that the centre temperatures of the most
 strongly reduced samples (R1100 at $\delta_p/R = 0.31$, Ti₂O₃ at 0.11) are read
@@ -292,9 +293,7 @@ must therefore reach the same wall temperature, whatever their dielectric
 properties. This is a falsifiable statement about the measured dataset, and it
 is used here as a consistency check on the cavity-perturbation partitioning.
 
-**Per-sample reconstruction.** Each rutile-family sample was run at its own
-measured tap density (hence its own void fraction and Looyenga-mixed
-dielectric) and its own reported $P_{\text{sample}}$:
+**Per-sample reconstruction.**
 
 **Table S_x.5 — Per-sample thermal reconstruction of the rutile family.**
 Each sample run at its measured tap density (hence its own void fraction and
@@ -310,14 +309,19 @@ those calibrated on r-TiO₂-R600 and are *not* re-fitted per sample.
 | Ti₂O₃        | 2.340 | 0.478 |  7.99 | 0.11 | 256 | 221 | +35 |
 
 The first three residuals agree to within 4 K of each other across a
-twenty-fold range in deposited power and a two-fold range in bed density — a
-constant offset, not a trend. The last two depart from it, and change sign.
+twenty-two-fold range in deposited power and a 2.4-fold range in bed density.
+That is a constant offset, not a trend, and a constant offset is hard to
+produce by any sample-dependent mechanism; the natural reading is a calibration
+difference of about −35 °C between the cavity used for the power sweep and the
+dual-mode cavity used for the dielectric measurements. The two high-loss
+samples break the pattern and change sign.
 
-The three low-loss samples share a **constant** offset of −35 °C, consistent
-with a calibration difference between the cavity used for the power sweep and
-the dual-mode cavity used for the dielectric measurements; a constant offset
-cannot be produced by any sample-dependent mechanism. The two high-loss samples
-break that pattern with the opposite sign.
+Two caveats on this table. The a-TiO₂ point sits at 0.79 W, well below the
+calibration series, which itself shows its largest wall residual (+20.7 K) at
+its lowest power; that row should be treated as an extrapolation. And the
+thermal parameters are those calibrated on r-TiO₂-R600 for every row, so the
+comparison assumes the samples share a bed conductivity, which is only
+plausible within the rutile family.
 
 **The R1000/R1100 pair.** These two samples are reported to receive
 17.48 W and 17.55 W — equal within 0.4 % — yet their measured wall temperatures
@@ -353,9 +357,10 @@ validity annotation on Figure 2g rather than a change to the analysis: the
 partitioning shown for the two most strongly reduced samples should be read as
 an upper bound on $P_{\text{sample}}/P_{\text{abs}}$.
 
-Note that this conclusion rests on energy conservation in the thermal model
-plus the *measured* reflected power, and does not depend on any electromagnetic
-modelling.
+The inversion side of this comparison rests only on energy conservation in the
+thermal model and the measured wall temperatures; no electromagnetic modelling
+enters it. What is being tested is the cavity-perturbation partitioning against
+a thermal measurement, and the two are independent.
 
 ---
 
@@ -380,9 +385,12 @@ Stated plainly, because several of them bound the results above.
    only the dielectric input and the void fraction. The constant −35 °C offset
    is consistent with that assumption; a per-sample thermal calibration is not
    available.
-7. **Two-thermometer identifiability.** As shown in Section S_x.5, the field
-   width is not observable from any exterior measurement. Results depending on
-   it are reported as bands.
+7. **Two-thermometer identifiability.** As shown in Section S_x.5, the wall
+   thermometer carries essentially no information about the field width, and
+   neither of the two additional exterior measurements we tested recovers it.
+   We do not claim this is true of every conceivable exterior probe, only of
+   those examined here. Results depending on the field width are reported as
+   bands.
 
 ---
 
@@ -398,5 +406,11 @@ the scripts in `tools/si/`.
 | Solver core | `apps/microwave/solver.js` |
 | Unit tests | `tests/microwave-solver.test.js` |
 | Verification suite | `tools/verification/microwave.mjs`, `docs/VERIFICATION.md` |
-| Note reproduction scripts | `tools/si/` |
+| Note reproduction scripts | `tools/si/microwave-note.mjs` |
 | Commit | *to be recorded on submission* |
+
+```bash
+node tools/si/microwave-note.mjs            # Tables S_x.1, S_x.3, S_x.4, S_x.5
+node tools/si/microwave-note.mjs --invert   # adds Table S_x.6 (~1 h)
+npm run verify:microwave                    # Table S_x.2 and the analytic checks
+```
