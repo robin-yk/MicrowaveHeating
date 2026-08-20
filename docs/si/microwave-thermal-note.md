@@ -201,42 +201,91 @@ examined in Section S_x.7.
 ## S_x.5  The FBG reading is not the bed temperature
 
 At the highest power in the calibration series the model places the axial FBG
-reading roughly 200 K above the volume-averaged bed temperature. The gap grows
+reading roughly 180 K above the volume-averaged bed temperature. The gap grows
 monotonically with power because it is set by the internal conduction
 resistance against a nearly fixed external loss coefficient.
 
 The value is **bounded rather than determined**, and the reason is worth
 stating precisely. The field-envelope widths $w_r, w_z$ are fitted, not
-measured, and the two-thermometer dataset does not determine them uniquely:
-parameter sets differing in $w_r$ by a factor of 2.5 reproduce both measured
-temperatures within their experimental scatter. Sweeping $w_r$ across the range
-compatible with the calibration moves the gap over
+measured, and the two-thermometer dataset constrains them only partly.
+Table S_x.4 sweeps $w_r$ over the full plausible range — from an envelope
+narrower than the tube to an effectively uniform one — reporting both the fit
+quality against the seven-power series and the resulting gap.
 
-$$T_{\text{FBG}} - \langle T\rangle_{V} = 200 \pm 30\ \text{K at } P_{\text{sample}} = 26\ \text{W},$$
+**Table S_x.4 — Sensitivity of the fit and of the FBG-to-average gap to the
+fitted field width.**
+Every other calibrated parameter, including $w_z$, held fixed. The two RMSE
+columns are taken over the seven-power series of Table S_x.1; the temperature
+columns are at `P_sample` = 26 W on the default grid.
 
-and grid refinement moves it a further ~17 K downward (Table S_x.2), which is
-inside that band.
+| $w_r$ | RMSE `T_wall` (K) | RMSE `T_center` (K) | `T_center` (°C) | ⟨T⟩_V (°C) | gap (K) |
+|---|---:|---:|---:|---:|---:|
+| 0.8 | 9.2 | 57.2 | 865 | 635 | 230 |
+| 1.0 | 9.2 | 34.9 | 830 | 627 | 203 |
+| 1.2 *(calibrated)* | 9.1 | 24.6 | 811 | 623 | 188 |
+| 1.5 | 9.1 | 18.8 | 796 | 619 | 177 |
+| 2.0 | 9.1 | 17.5 | 784 | 616 | 168 |
+| 3.0 | 9.1 | 18.6 | 776 | 614 | 162 |
+| 6.0 | 9.1 | 19.9 | 771 | 613 | 159 |
+| 20 *(uniform limit)* | 9.1 | 20.4 | 770 | 612 | 157 |
 
-We investigated whether an additional measurement could narrow the band and
-conclude that it cannot with external probes. Two candidate discriminators were
-tested against the model:
+Two features of this sweep matter, and they point in different directions.
 
-* an **off-axis FBG**: the discrimination between $w_r = 0.8$ and $w_r = 2.0$ is
-  81 K on the axis and falls to zero at $r = 4$ mm;
+**The wall thermometer carries no information about the field width.**
+`RMSE(T_wall)` is 9.1–9.2 K across the entire sweep: changing the deposition
+profile from a narrow core to a uniform one moves it by 0.1 K, two orders of
+magnitude below the residual itself. This is the quantitative form of the
+decoupling described in Section S_x.6 — `T_wall` is set by the total power and
+the external loss path, not by where inside the bed that power lands — and it
+means the wall pyrometer cannot be used to constrain the profile at all.
+
+**The centre thermometer excludes narrow envelopes but cannot resolve wide
+ones.** `RMSE(T_center)` falls steeply as the envelope is widened, from 57 K at
+$w_r = 0.8$ to 18.8 K at 1.5, then flattens into a shallow basin: every width
+from 1.5 to 3.0 sits within about 1 K of the best value. The data therefore
+reject a strongly peaked deposition profile decisively and cannot distinguish
+among widths spanning a factor of two. We do not read the basin minimum as a
+re-calibration: only $w_r$ is varied here while the remaining eight parameters
+are held at their jointly fitted values, so the sweep measures *sensitivity*,
+not a re-optimised fit.
+
+Taking the admissible range as $w_r \in [1.2, 3.0]$ — the shipped calibration
+at the narrow end, the basin at the wide end — the gap at 26 W runs from 188 K
+down to 162 K:
+
+$$T_{\text{FBG}} - \langle T\rangle_{V} = 175 \pm 15\ \text{K at } P_{\text{sample}} = 26\ \text{W (fitted-width spread).}$$
+
+Grid refinement moves the default-grid value a further 17 K downward
+(Table S_x.2). Both known biases therefore act in the same direction, and we
+quote the gap as **170 ± 25 K**, noting that the true value is more likely to
+sit at the lower end of that band than the upper. What the analysis supports
+without qualification is the sign and the order of magnitude: the FBG reads
+well over a hundred kelvin above the bed's volume average at the top of the
+series, and the discrepancy is not a calibration artefact but a conduction
+resistance.
+
+We investigated whether an additional measurement could narrow the band, and
+neither candidate we tested does. Both were evaluated by contrasting the two
+extremes of the sweep, $w_r = 0.8$ against $w_r = 2.0$:
+
+* an **off-axis FBG**: the two profiles differ by 81 K on the axis, and the
+  difference falls to zero at $r = 4$ mm — so a probe displaced far enough to be
+  practical is displaced far enough to be uninformative;
 * an **axial wall temperature profile** from an IR camera: the two field widths
-  differ by less than ±2 K anywhere on the quartz outer surface.
+  differ by less than ±2 K anywhere on the quartz outer surface, which follows
+  directly from the wall-blindness above.
 
-The field-shape ambiguity is therefore not observable from the reactor exterior.
-Narrowing it requires replacing the fitted envelope with a computed one — that
-is, a full-wave solution of the cavity field — rather than an additional
-thermal measurement. This is the one place in the present analysis where an
-electromagnetic solver would change a number.
+Narrowing the band therefore calls for replacing the fitted envelope with a
+computed one — a full-wave solution of the cavity field — rather than an
+additional thermal measurement. We do not claim that no exterior probe could
+recover the profile, only that neither of these two can. This is the one place
+in the present analysis where an electromagnetic solver would change a number.
 
 ---
 
 ## S_x.6  The two thermometers separate two different effects
 
-**Table S_x.4 — Response of the two thermometers to the deposition profile.**
+**Table S_x.5 — Response of the two thermometers to the deposition profile.**
 `P_sample` held at 26 W while the bed's ε″(T) is scaled by the factor in the
 first column, driving the penetration depth (evaluated at the bed-centre temperature)
 from 1.85 bed radii down to 0.15.
@@ -255,13 +304,9 @@ outer 20 % of the bed radius.
 | ×64 | 0.75 | 0.15 | 500 | 628 | 640 | 3.3 | 75 % |
 
 Over a 64-fold change in loss at constant power — a swing from volumetric
-heating to a pronounced surface skin — `T_wall` moves 4 K, within the
-pyrometer's own scatter, while `T_center` moves 183 K.
-
-Holding $P_{\text{sample}}$ fixed and scaling the dielectric loss over a factor
-of 64 — which changes the penetration depth from several bed radii to a thin
-surface skin — moves `T_wall` by only a few kelvin while moving `T_center` by
-nearly 200 K.
+heating through to a pronounced surface skin, with the fraction of the power
+landing in the outer fifth of the radius rising from 31 % to 75 % — `T_wall`
+moves 4 K, inside the pyrometer's own scatter, while `T_center` moves 183 K.
 
 This is not a defect. It is what makes the pair of thermometers informative:
 
@@ -269,15 +314,19 @@ This is not a defect. It is what makes the pair of thermometers informative:
   **where** it is deposited;
 * `T_center` responds to both.
 
-`T_wall` is therefore a clean power meter, and the difference between the two
-readings isolates the deposition profile. Section S_x.7 uses the first half of
-that statement as a consistency check on the measured series.
+`T_wall` is therefore a clean power meter, and what information the dataset
+carries about the deposition profile is carried entirely by `T_center` — subject
+to the sensitivity limits quantified in Section S_x.5, where widening the fitted
+envelope by a factor of two inside the basin ($w_r = 1.5 \to 3.0$) changes the
+centre-channel fit quality by 0.2 K. Section S_x.7 uses only the first half of the
+statement, the clean power meter, as a consistency check on the measured series;
+nothing in that check depends on the profile.
 
 A secondary consequence concerns the FBG itself. Down to $\delta_p/R \approx 0.43$
 the hottest cell in the bed is the on-axis cell and the FBG reads the maximum to
 within 2 K. Below that the maximum migrates outward — $r = 1.3$ mm at
 $\delta_p/R = 0.30$, 3.3 mm at 0.15 — and the on-axis FBG under-reads it by
-2 K, 6 K and 12 K over the last three rows of Table S_x.4. The effect is real but
+2 K, 6 K and 12 K over the last three rows of Table S_x.5. The effect is real but
 small compared with the FBG-to-average gap of Section S_x.5, and it changes no
 conclusion here. It is reported so that the centre temperatures of the most
 strongly reduced samples (R1100 at $\delta_p/R = 0.31$, Ti₂O₃ at 0.11) are read
@@ -295,7 +344,7 @@ is used here as a consistency check on the cavity-perturbation partitioning.
 
 **Per-sample reconstruction.**
 
-**Table S_x.5 — Per-sample thermal reconstruction of the rutile family.**
+**Table S_x.6 — Per-sample thermal reconstruction of the rutile family.**
 Each sample run at its measured tap density (hence its own void fraction and
 Looyenga-mixed dielectric) and its reported `P_sample`. Thermal parameters are
 those calibrated on r-TiO₂-R600 and are *not* re-fitted per sample.
@@ -334,11 +383,27 @@ moves the prediction the wrong way.
 `T_wall(P_sample)` curve, after removing the constant offset, gives the power
 each sample must actually have received:
 
-<<TABLE_S6>>
+**Table S_x.7 — Power implied by the measured wall temperature, against the
+power reported from cavity perturbation theory.**
+The constant −35 °C offset established above is removed first; `P_sample` is
+then bisected until the model reproduces each sample's measured `T_wall`.
+$\gamma = 3\times10^{-3}$ as used in Note S2b.
 
-The ratio is unity within the calibration uncertainty for the three low-loss
-samples and falls systematically below unity for the two high-loss ones, in
-order of the perturbation parameter $\gamma\varepsilon''$.
+| sample | γε″ | δ_p/R | P_sample from CPT (W) | P_sample implied by T_wall (W) | ratio |
+|---|---:|---:|---:|---:|---:|
+| a-TiO₂-R600  | 0.0000 | 394  |  0.79 |  0.85 | 1.07 |
+| r-TiO₂-R600  | 0.0010 | 2.11 | 14.88 | 14.87 | 1.00 |
+| r-TiO₂-R1000 | 0.0038 | 0.77 | 17.48 | 17.32 | 0.99 |
+| r-TiO₂-R1100 | 0.0196 | 0.31 | 17.55 | 13.60 | **0.77** |
+| Ti₂O₃        | 0.1581 | 0.11 |  7.99 |  4.88 | **0.61** |
+
+The ratio is unity to within 7 % for the three low-loss samples — and to within
+1 % for the two that sit inside the calibrated power range — then falls to 0.77
+and 0.61 for the two high-loss ones, monotonically in the perturbation
+parameter $\gamma\varepsilon''$. The a-TiO₂ row carries the largest uncertainty of
+the three — it sits at 0.79 W, six times below the bottom of the
+calibration series — so its 1.07 should not be read as a resolved departure in
+the opposite direction.
 
 **Interpretation.** The cavity-perturbation expression used in Note S2b,
 
@@ -369,7 +434,7 @@ a thermal measurement, and the two are independent.
 Stated plainly, because several of them bound the results above.
 
 1. **No electromagnetic solution.** The deposition profile is a fitted envelope,
-   not a computed field. This is the origin of the ±30 K band in Section S_x.5.
+   not a computed field. This is the origin of the ±25 K band in Section S_x.5.
 2. **Parameter count.** Nine fitted parameters against fourteen data points.
    The model interpolates the calibration series reliably; extrapolation beyond
    it is not supported.
@@ -410,7 +475,8 @@ the scripts in `tools/si/`.
 | Commit | *to be recorded on submission* |
 
 ```bash
-node tools/si/microwave-note.mjs            # Tables S_x.1, S_x.3, S_x.4, S_x.5
-node tools/si/microwave-note.mjs --invert   # adds Table S_x.6 (~1 h)
+node tools/si/microwave-note.mjs            # Tables S_x.1, S_x.3, S_x.5, S_x.6
+node tools/si/microwave-note.mjs --band     # adds Table S_x.4  (~5 min)
+node tools/si/microwave-note.mjs --invert   # adds Table S_x.7  (~1 h)
 npm run verify:microwave                    # Table S_x.2 and the analytic checks
 ```

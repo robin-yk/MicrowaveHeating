@@ -4,7 +4,8 @@
 // measured tap density and the measured dielectric function.
 //
 // Run: node tools/si/microwave-note.mjs
-//      node tools/si/microwave-note.mjs --invert   (adds the slow Table S6)
+//      node tools/si/microwave-note.mjs --band     (adds Table S4, ~5 min)
+//      node tools/si/microwave-note.mjs --invert   (adds Table S7, ~1 h)
 "use strict";
 import { solve2D } from "../../apps/microwave/solver.js";
 import { defaultParams } from "../verification/microwave.mjs";
@@ -34,7 +35,7 @@ const SAMPLES = [
   ["Ti₂O₃",        2.340, 4.49, 36.38, 52.7100,  7.99, 221.0],
 ];
 
-// The constant residual shared by the three low-loss samples (Table S5); read
+// The constant residual shared by the three low-loss samples (Table S6); read
 // as a calibration difference between the power-sweep cavity and the dual-mode
 // cavity, and removed before inverting.
 const CAVITY_OFFSET = 35;
@@ -82,8 +83,37 @@ for (const P of [5, 10, 17, 26]) {
 console.log(markdownTable(
   ["P_sample (W)", "quartz radiation", "outer convection", "gas enthalpy", "→ radial (internal)", "→ axial (internal)"], t3));
 
+// Sweep-flow sensitivity quoted in the same section: the helium is not a
+// meaningful heat-removal path, so flow rate is not a temperature handle.
+console.log("\nSweep-flow sensitivity at 26 W:");
+for (const flow of [25, 50, 100]) {
+  const s = solve2D(defaultParams({ P: 26, flow }));
+  console.log(`  ${String(flow).padStart(3)} sccm  T_wall ${fix(s.wall, 1)} °C  T_center ${fix(s.center, 1)} °C  gas share ${fix(100 * s.qgas / 26, 1)}%`);
+}
+
 // ------------------------------------------------------------- Table S4
-console.log("\n### Table S_x.4 — response to the deposition profile at fixed power\n");
+// Field-width sensitivity. Only w_r is varied; the remaining calibrated
+// parameters stay at their jointly fitted values, so this measures how much
+// each thermometer *responds* to the deposition profile, not a re-fit.
+if (process.argv.includes("--band")) {
+  console.log("\n### Table S_x.4 — sensitivity to the fitted field width\n");
+  const t4b = [];
+  for (const wr of [0.8, 1.0, 1.2, 1.5, 2.0, 3.0, 6.0, 20.0]) {
+    let bw = 0, bc = 0, bn = 0;
+    for (const P of Object.keys(SERIES).map(Number)) {
+      const s = solve2D(defaultParams({ P, fieldWr: wr }));
+      bw += (s.wall - SERIES[P][0]) ** 2; bc += (s.center - SERIES[P][1]) ** 2; bn++;
+    }
+    const s26 = solve2D(defaultParams({ P: 26, fieldWr: wr }));
+    t4b.push([fix(wr, 1), fix(Math.sqrt(bw / bn), 1), fix(Math.sqrt(bc / bn), 1),
+              fix(s26.center, 0), fix(s26.Tavg, 0), fix(s26.center - s26.Tavg, 0)]);
+  }
+  console.log(markdownTable(
+    ["w_r", "RMSE T_wall (K)", "RMSE T_center (K)", "T_center (°C)", "⟨T⟩_V (°C)", "gap (K)"], t4b));
+}
+
+// ------------------------------------------------------------- Table S5
+console.log("\n### Table S_x.5 — response to the deposition profile at fixed power\n");
 const t4 = [];
 for (const x of [1, 2, 4, 8, 16, 32, 64]) {
   const p = defaultParams({ P: 26, dielectricMode: "manual", diel: BASE_DIEL.map(([T, e1, e2]) => [T, e1, e2 * x]) });
@@ -111,8 +141,8 @@ for (const x of [1, 2, 4, 8, 16, 32, 64]) {
 console.log(markdownTable(
   ["ε″ scaling", "δ_p (mm)", "δ_p/R", "T_wall (°C)", "T_center (°C)", "T_max (°C)", "r(T_max) (mm)", "power in outer 20%"], t4));
 
-// ------------------------------------------------------------- Table S5
-console.log("\n### Table S_x.5 — per-sample reconstruction\n");
+// ------------------------------------------------------------- Table S6
+console.log("\n### Table S_x.6 — per-sample reconstruction\n");
 const t5 = [];
 for (const [name, tap, rhoS, ep, epp, P, Tmeas] of SAMPLES) {
   const p = sampleParams(tap, rhoS, rescale(ep, epp), { P });
@@ -123,9 +153,9 @@ for (const [name, tap, rhoS, ep, epp, P, Tmeas] of SAMPLES) {
 console.log(markdownTable(
   ["sample", "tap ρ (g/mL)", "void", "P_sample (W)", "δ_p/R", "T_wall model", "T_wall meas.", "Δ (K)"], t5));
 
-// ------------------------------------------------------------- Table S6
+// ------------------------------------------------------------- Table S7
 if (process.argv.includes("--invert")) {
-  console.log("\n### Table S_x.6 — power implied by the measured wall temperature\n");
+  console.log("\n### Table S_x.7 — power implied by the measured wall temperature\n");
   const t6 = [];
   for (const [name, tap, rhoS, ep, epp, P, Tmeas] of SAMPLES) {
     const diel = rescale(ep, epp);
@@ -135,8 +165,10 @@ if (process.argv.includes("--invert")) {
       const s = solve2D(sampleParams(tap, rhoS, diel, { P: mid }));
       if (s.wall + CAVITY_OFFSET < Tmeas) lo = mid; else hi = mid;
     }
-    t6.push([name, fix(P, 2), fix(mid, 2), fix(mid / P, 2), (GAMMA * epp).toExponential(1)]);
+    const s0 = solve2D(sampleParams(tap, rhoS, diel, { P }));
+    t6.push([name, fix(GAMMA * epp, 4), fix(s0.dpCenter / s0.R, 2),
+             fix(P, 2), fix(mid, 2), fix(mid / P, 2)]);
   }
   console.log(markdownTable(
-    ["sample", "P_sample from CPT (W)", "P_sample implied (W)", "ratio", "γε″"], t6));
+    ["sample", "γε″", "δ_p/R", "P_sample from CPT (W)", "P_sample implied by T_wall (W)", "ratio"], t6));
 }
