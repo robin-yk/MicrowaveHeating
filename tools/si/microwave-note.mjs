@@ -3,13 +3,18 @@
 // are the page's calibrated defaults, and the only per-sample inputs are the
 // measured tap density and the measured dielectric function.
 //
-// With no flag the four cheap tables are printed. Each flag selects one of the
-// expensive studies instead; pass --all to add the cheap tables back alongside.
+// With no flag the default tables are printed. Each flag selects one study
+// instead; pass --all to add the default tables back alongside.
 //
-// Run: node tools/si/microwave-note.mjs             (Tables S1, S3, S5, S6; ~20 min)
-//      node tools/si/microwave-note.mjs --band      (Table S4;              ~25 min)
-//      node tools/si/microwave-note.mjs --grid      (thin-skin check;       ~25 min)
-//      node tools/si/microwave-note.mjs --invert    (Table S7;              ~1 h)
+// Timings below are measured on a 4-core container. Everything except --grid
+// runs on the default 30x60 grid at roughly six solves a minute, so cost tracks
+// the solve count; --grid is the outlier because four of its twelve solves are
+// at 120x240.
+//
+// Run: node tools/si/microwave-note.mjs             (Tables S1, S3, S5, S6; ~5 min)
+//      node tools/si/microwave-note.mjs --band      (Table S4;              ~7 min)
+//      node tools/si/microwave-note.mjs --invert    (Table S7;             ~20 min)
+//      node tools/si/microwave-note.mjs --grid      (thin-skin check;    ~1 h 45)
 "use strict";
 import { solve2D } from "../../apps/microwave/solver.js";
 import { defaultParams } from "../verification/microwave.mjs";

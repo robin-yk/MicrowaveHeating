@@ -515,16 +515,19 @@ the scripts in `tools/si/`.
 | Note reproduction scripts | `tools/si/microwave-note.mjs` |
 | Commit | *to be recorded on submission* |
 
-Each flag selects one study rather than appending it to a full run, since every
-one of them costs tens of minutes; `--all` adds the cheap tables back alongside.
+Each flag selects one study rather than appending it to a full run; `--all` adds
+the default tables back alongside.
 
 ```bash
-node tools/si/microwave-note.mjs             # Tables S_x.1, S_x.3, S_x.5, S_x.6  (~20 min)
-node tools/si/microwave-note.mjs --band      # Table S_x.4                        (~25 min)
-node tools/si/microwave-note.mjs --grid      # thin-skin grid check of S_x.7      (~25 min)
-node tools/si/microwave-note.mjs --invert    # Table S_x.7                        (~1 h)
+node tools/si/microwave-note.mjs             # Tables S_x.1, S_x.3, S_x.5, S_x.6  (~5 min)
+node tools/si/microwave-note.mjs --band      # Table S_x.4                        (~7 min)
+node tools/si/microwave-note.mjs --invert    # Table S_x.7                       (~20 min)
+node tools/si/microwave-note.mjs --grid      # thin-skin grid check of S_x.7    (~1 h 45)
 npm run verify:microwave                     # Table S_x.2 and the analytic checks
 ```
 
-Timings are for a single core; the `--grid` and `--invert` studies are dominated
-by the 120 × 240 solves and the bisection respectively.
+Timings are measured on a 4-core container. Everything but `--grid` runs on the
+default 30 × 60 grid at roughly six solves a minute, so cost tracks the solve
+count — `--invert` is expensive because it bisects, not because any one solve is
+slow. `--grid` is the outlier: four of its twelve solves are at 120 × 240, which
+is where nearly all of its runtime goes.
