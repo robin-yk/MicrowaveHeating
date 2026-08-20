@@ -5,6 +5,7 @@
 //
 // Run: node tools/si/microwave-note.mjs
 //      node tools/si/microwave-note.mjs --band     (adds Table S4, ~5 min)
+//      node tools/si/microwave-note.mjs --grid     (thin-skin grid check)
 //      node tools/si/microwave-note.mjs --invert   (adds Table S7, ~1 h)
 "use strict";
 import { solve2D } from "../../apps/microwave/solver.js";
@@ -152,6 +153,31 @@ for (const [name, tap, rhoS, ep, epp, P, Tmeas] of SAMPLES) {
 }
 console.log(markdownTable(
   ["sample", "tap ρ (g/mL)", "void", "P_sample (W)", "δ_p/R", "T_wall model", "T_wall meas.", "Δ (K)"], t5));
+
+// -------------------------------------------------- thin-skin grid check
+// The two most reduced samples have a penetration depth of order one radial
+// cell on the default grid. Section S_x.7 rests on T_wall being insensitive to
+// that, so check it directly on the doubling sequence of Table S_x.2.
+if (process.argv.includes("--grid")) {
+  console.log("\n### Thin-skin grid check — T_wall at the reported power\n");
+  const tg = [];
+  for (const [name, tap, rhoS, ep, epp, P] of SAMPLES.slice(1)) {
+    const diel = rescale(ep, epp);
+    const row = [name];
+    let dpR = 0;
+    for (const lv of [0, 1, 2]) {
+      const s = solve2D(sampleParams(tap, rhoS, diel, {
+        P, Nr: 30 << lv, Nz: 60 << lv, tol: 3e-4 / (1 << lv), maxIter: 60000,
+      }));
+      row.push(fix(s.wall, 1));
+      dpR = s.dpCenter / s.R;
+    }
+    tg.push([row[0], fix(dpR, 2), row[1], row[2], row[3],
+             fix(Math.abs(Number(row[1]) - Number(row[3])), 1)]);
+  }
+  console.log(markdownTable(
+    ["sample", "δ_p/R", "10 cells/R", "20 cells/R", "40 cells/R", "drift (K)"], tg));
+}
 
 // ------------------------------------------------------------- Table S7
 if (process.argv.includes("--invert")) {

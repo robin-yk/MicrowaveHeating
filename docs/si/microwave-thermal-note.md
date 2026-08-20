@@ -104,7 +104,10 @@ radiative area multiplier, and the air-gap conduction factor — against the
 fourteen measurements in Table S_x.1 (seven powers × two thermometers). The
 resulting parameter-to-datum ratio of 9:14 is poor by the standards of a
 predictive model and is the reason this note reports **bounds** on the derived
-quantities rather than point values.
+quantities rather than point values. It is also not uniform across the two
+channels: Table S_x.4 shows that two of the nine parameters, the field-envelope
+widths, are invisible to the wall thermometer entirely and only weakly
+constrained by the centre one.
 
 **Table S_x.1 — Calibration against the two-thermometer power sweep.**
 Reduced rutile TiO₂ (H₂, 600 °C, 30 min), 1.150 g in a 10 mm × 15 mm bed,
@@ -326,8 +329,10 @@ A secondary consequence concerns the FBG itself. Down to $\delta_p/R \approx 0.4
 the hottest cell in the bed is the on-axis cell and the FBG reads the maximum to
 within 2 K. Below that the maximum migrates outward — $r = 1.3$ mm at
 $\delta_p/R = 0.30$, 3.3 mm at 0.15 — and the on-axis FBG under-reads it by
-2 K, 6 K and 12 K over the last three rows of Table S_x.5. The effect is real but
-small compared with the FBG-to-average gap of Section S_x.5, and it changes no
+2 K, 6 K and 12 K over the last three rows of Table S_x.5. Those last rows are
+also where the skin narrows to a few radial cells, so the migration should be
+read as a trend rather than as resolved positions. The effect is real but small
+compared with the FBG-to-average gap of Section S_x.5, and it changes no
 conclusion here. It is reported so that the centre temperatures of the most
 strongly reduced samples (R1100 at $\delta_p/R = 0.31$, Ti₂O₃ at 0.11) are read
 as axial values rather than bed maxima.
@@ -405,6 +410,29 @@ the three — it sits at 0.79 W, six times below the bottom of the
 calibration series — so its 1.07 should not be read as a resolved departure in
 the opposite direction.
 
+**Is the departure a resolution artefact?** The two samples that break the
+pattern are also the two whose deposition is hardest to resolve: on the default
+grid the bed radius spans ten cells, so Ti₂O₃'s penetration depth of 0.55 mm is
+barely one cell wide. If the model mis-handled a thin skin, it would do so
+exactly where the departure appears. We therefore repeated the forward solve for
+all four rutile-family samples on the same doubling grid sequence used in
+Table S_x.2:
+
+| sample | δ_p/R | `T_wall` at 10 cells/R | 20 cells/R | 40 cells/R | drift |
+|---|---:|---:|---:|---:|---:|
+| r-TiO₂-R600  | 2.11 | 367.8 | 367.7 | 367.7 | 0.1 K |
+| r-TiO₂-R1000 | 0.77 | 403.0 | 402.9 | 402.9 | 0.1 K |
+| r-TiO₂-R1100 | 0.31 | 405.3 | 405.1 | 405.0 | 0.3 K |
+| Ti₂O₃        | 0.11 | 255.7 | 255.5 | 255.1 | 0.6 K |
+
+`T_wall` is grid-converged to better than 1 K in every case, including the one
+where the skin is sub-cell on the default grid. This is the behaviour
+Section S_x.6 predicts — the wall temperature is set by the total power and the
+external loss path, not by the deposition profile — and it means the profile
+being under-resolved does not propagate into the inverted power. The departures
+being interpreted correspond to 19 K and 35 K of wall temperature; the numerical
+uncertainty on them is under 2 % of that.
+
 **Interpretation.** The cavity-perturbation expression used in Note S2b,
 
 $$\frac{P_{\text{sample}}}{P_{\text{abs}}} = \frac{2\gamma\varepsilon'' Q_{u0}}
@@ -412,13 +440,20 @@ $$\frac{P_{\text{sample}}}{P_{\text{abs}}} = \frac{2\gamma\varepsilon'' Q_{u0}}
 
 is a first-order result in the perturbation parameter $\gamma\varepsilon''$ and
 is not expected to hold once that parameter approaches unity. The inversion
-locates the departure empirically at
+brackets the departure between the last sample that agrees, R1000 at
+$\gamma\varepsilon'' = 3.8\times10^{-3}$ (ratio 0.99), and the first that does
+not, R1100 at $2.0\times10^{-2}$ (ratio 0.77). We therefore place the bound at
 
 $$\gamma\varepsilon'' \gtrsim 5\times10^{-3},$$
 
 above which the expression **over-estimates** the sample's share of the absorbed
-power. Both R1100 and Ti₂O₃ lie above this bound. We therefore suggest a
-validity annotation on Figure 2g rather than a change to the analysis: the
+power. The bracket is set by two samples and the position within it is not
+resolved; what the data support is that the expression is sound at
+$\gamma\varepsilon'' \sim 10^{-3}$ and has lost roughly a quarter of its value
+by $2\times10^{-2}$.
+
+We therefore suggest a validity annotation on Figure 2g rather than a change to
+the analysis: the
 partitioning shown for the two most strongly reduced samples should be read as
 an upper bound on $P_{\text{sample}}/P_{\text{abs}}$.
 
@@ -450,7 +485,13 @@ Stated plainly, because several of them bound the results above.
    only the dielectric input and the void fraction. The constant −35 °C offset
    is consistent with that assumption; a per-sample thermal calibration is not
    available.
-7. **Two-thermometer identifiability.** As shown in Section S_x.5, the wall
+7. **Thin-skin resolution.** For the two most strongly reduced samples the
+   penetration depth is comparable to a single radial cell on the default grid.
+   `T_wall` is unaffected (Section S_x.7) and the inversion is therefore safe,
+   but the *interior* fields reported for those two rows — `T_center`, `T_max`,
+   the radial position of the hotspot — are not resolved and should not be
+   quoted.
+8. **Two-thermometer identifiability.** As shown in Section S_x.5, the wall
    thermometer carries essentially no information about the field width, and
    neither of the two additional exterior measurements we tested recovers it.
    We do not claim this is true of every conceivable exterior probe, only of
@@ -477,6 +518,7 @@ the scripts in `tools/si/`.
 ```bash
 node tools/si/microwave-note.mjs            # Tables S_x.1, S_x.3, S_x.5, S_x.6
 node tools/si/microwave-note.mjs --band     # adds Table S_x.4  (~5 min)
+node tools/si/microwave-note.mjs --grid     # adds the thin-skin grid check
 node tools/si/microwave-note.mjs --invert   # adds Table S_x.7  (~1 h)
 npm run verify:microwave                    # Table S_x.2 and the analytic checks
 ```
