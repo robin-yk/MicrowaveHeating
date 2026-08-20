@@ -3,10 +3,13 @@
 // are the page's calibrated defaults, and the only per-sample inputs are the
 // measured tap density and the measured dielectric function.
 //
-// Run: node tools/si/microwave-note.mjs
-//      node tools/si/microwave-note.mjs --band     (adds Table S4, ~5 min)
-//      node tools/si/microwave-note.mjs --grid     (thin-skin grid check)
-//      node tools/si/microwave-note.mjs --invert   (adds Table S7, ~1 h)
+// With no flag the four cheap tables are printed. Each flag selects one of the
+// expensive studies instead; pass --all to add the cheap tables back alongside.
+//
+// Run: node tools/si/microwave-note.mjs             (Tables S1, S3, S5, S6; ~20 min)
+//      node tools/si/microwave-note.mjs --band      (Table S4;              ~25 min)
+//      node tools/si/microwave-note.mjs --grid      (thin-skin check;       ~25 min)
+//      node tools/si/microwave-note.mjs --invert    (Table S7;              ~1 h)
 "use strict";
 import { solve2D } from "../../apps/microwave/solver.js";
 import { defaultParams } from "../verification/microwave.mjs";
@@ -57,7 +60,15 @@ function sampleParams(tapDensity, rhoSolid, diel, overrides = {}) {
 
 const rescale = (ep, epp) => BASE_DIEL.map(([T, e1, e2]) => [T, e1 * ep / REF_EP, e2 * epp / REF_EPP]);
 
+// Every study here costs tens of minutes, so a flag selects one rather than
+// appending it to a full run: asking for the grid check should not first
+// recompute four tables you already have.
+const flag = (f) => process.argv.includes(f);
+const selective = ["--band", "--grid", "--invert"].some(flag);
+const cheapTables = !selective || flag("--all");
+
 // ------------------------------------------------------------- Table S1
+if (cheapTables) {
 console.log("### Table S_x.1 — calibration against the two-thermometer sweep\n");
 let sw = 0, sc = 0, n = 0;
 const t1 = [];
@@ -72,8 +83,10 @@ for (const P of Object.keys(SERIES).map(Number)) {
 console.log(markdownTable(
   ["P_sample (W)", "T_wall model", "T_wall meas.", "Δ", "T_center model", "T_center meas.", "Δ", "⟨T⟩_V", "T_center − ⟨T⟩_V"], t1));
 console.log(`\nRMSE: T_wall ${fix(Math.sqrt(sw / n), 1)} K, T_center ${fix(Math.sqrt(sc / n), 1)} K\n`);
+}
 
 // ------------------------------------------------------------- Table S3
+if (cheapTables) {
 console.log("### Table S_x.3 — power partitioning\n");
 const t3 = [];
 for (const P of [5, 10, 17, 26]) {
@@ -91,12 +104,13 @@ for (const flow of [25, 50, 100]) {
   const s = solve2D(defaultParams({ P: 26, flow }));
   console.log(`  ${String(flow).padStart(3)} sccm  T_wall ${fix(s.wall, 1)} °C  T_center ${fix(s.center, 1)} °C  gas share ${fix(100 * s.qgas / 26, 1)}%`);
 }
+}
 
 // ------------------------------------------------------------- Table S4
 // Field-width sensitivity. Only w_r is varied; the remaining calibrated
 // parameters stay at their jointly fitted values, so this measures how much
 // each thermometer *responds* to the deposition profile, not a re-fit.
-if (process.argv.includes("--band")) {
+if (flag("--band")) {
   console.log("\n### Table S_x.4 — sensitivity to the fitted field width\n");
   const t4b = [];
   for (const wr of [0.8, 1.0, 1.2, 1.5, 2.0, 3.0, 6.0, 20.0]) {
@@ -114,6 +128,7 @@ if (process.argv.includes("--band")) {
 }
 
 // ------------------------------------------------------------- Table S5
+if (cheapTables) {
 console.log("\n### Table S_x.5 — response to the deposition profile at fixed power\n");
 const t4 = [];
 for (const x of [1, 2, 4, 8, 16, 32, 64]) {
@@ -141,8 +156,10 @@ for (const x of [1, 2, 4, 8, 16, 32, 64]) {
 }
 console.log(markdownTable(
   ["ε″ scaling", "δ_p (mm)", "δ_p/R", "T_wall (°C)", "T_center (°C)", "T_max (°C)", "r(T_max) (mm)", "power in outer 20%"], t4));
+}
 
 // ------------------------------------------------------------- Table S6
+if (cheapTables) {
 console.log("\n### Table S_x.6 — per-sample reconstruction\n");
 const t5 = [];
 for (const [name, tap, rhoS, ep, epp, P, Tmeas] of SAMPLES) {
@@ -153,12 +170,13 @@ for (const [name, tap, rhoS, ep, epp, P, Tmeas] of SAMPLES) {
 }
 console.log(markdownTable(
   ["sample", "tap ρ (g/mL)", "void", "P_sample (W)", "δ_p/R", "T_wall model", "T_wall meas.", "Δ (K)"], t5));
+}
 
 // -------------------------------------------------- thin-skin grid check
 // The two most reduced samples have a penetration depth of order one radial
 // cell on the default grid. Section S_x.7 rests on T_wall being insensitive to
 // that, so check it directly on the doubling sequence of Table S_x.2.
-if (process.argv.includes("--grid")) {
+if (flag("--grid")) {
   console.log("\n### Thin-skin grid check — T_wall at the reported power\n");
   const tg = [];
   for (const [name, tap, rhoS, ep, epp, P] of SAMPLES.slice(1)) {
@@ -180,7 +198,7 @@ if (process.argv.includes("--grid")) {
 }
 
 // ------------------------------------------------------------- Table S7
-if (process.argv.includes("--invert")) {
+if (flag("--invert")) {
   console.log("\n### Table S_x.7 — power implied by the measured wall temperature\n");
   const t6 = [];
   for (const [name, tap, rhoS, ep, epp, P, Tmeas] of SAMPLES) {

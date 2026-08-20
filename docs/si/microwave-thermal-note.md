@@ -515,10 +515,16 @@ the scripts in `tools/si/`.
 | Note reproduction scripts | `tools/si/microwave-note.mjs` |
 | Commit | *to be recorded on submission* |
 
+Each flag selects one study rather than appending it to a full run, since every
+one of them costs tens of minutes; `--all` adds the cheap tables back alongside.
+
 ```bash
-node tools/si/microwave-note.mjs            # Tables S_x.1, S_x.3, S_x.5, S_x.6
-node tools/si/microwave-note.mjs --band     # adds Table S_x.4  (~5 min)
-node tools/si/microwave-note.mjs --grid     # adds the thin-skin grid check
-node tools/si/microwave-note.mjs --invert   # adds Table S_x.7  (~1 h)
-npm run verify:microwave                    # Table S_x.2 and the analytic checks
+node tools/si/microwave-note.mjs             # Tables S_x.1, S_x.3, S_x.5, S_x.6  (~20 min)
+node tools/si/microwave-note.mjs --band      # Table S_x.4                        (~25 min)
+node tools/si/microwave-note.mjs --grid      # thin-skin grid check of S_x.7      (~25 min)
+node tools/si/microwave-note.mjs --invert    # Table S_x.7                        (~1 h)
+npm run verify:microwave                     # Table S_x.2 and the analytic checks
 ```
+
+Timings are for a single core; the `--grid` and `--invert` studies are dominated
+by the 120 × 240 solves and the bisection respectively.
