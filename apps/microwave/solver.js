@@ -12,6 +12,13 @@ export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 export const materialProfiles = {
   "rutile-reduced-600c-30m": {
+    // Left on the fitted source deliberately. Recalibrating this profile needs a
+    // converged grid, and reduced rutile at 0.6-1.7 W/m-K is the case the
+    // grid-dependent bed-to-gas exchange dominates: its sequence diverges,
+    // centre differences growing -6.6 then -15.8 K (docs/VERIFICATION.md). SiC
+    // at 4-18 W/m-K is nearly isothermal across the bed and converges, which is
+    // why only it could be refit. Fix the exchange term before touching these.
+    fieldMode: undefined,
     label: "Reduced rutile TiO₂ · H₂ 600 °C, 30 min", formula: "TiO₂", rhoSolid: 4230, calibrationLabel: "Embedded reduced-rutile TiO₂ power sweep", dielectricNote: "Reduced-rutile ε′(T), ε″(T) values are an approximate digitization of the supplied curve; replace them with the numerical source before publication use.", fitBounds: { k200: [.2, 3], k500: [.15, 2], k800: [.1, 1.5], radArea: [.3, 3] },
     dielectric: `20,3.49,0.3204
 100,5.8,3.0
@@ -31,6 +38,15 @@ export const materialProfiles = {
     defaults: { pabs: 26, frequency: 2.404, volume: 1.18, diameter: 10, length: 15, mass: 1.150, gas: "He", flow: 50, ambient: 20, "tube-thickness": 1, "gas-pressure": 1, "particle-diameter": 50, "fbg-r": 0, "fbg-z": 0, k200: 1.70, k500: .62, k800: .58, "kz-ratio": 1.20, "h-contact": 1000, "k-quartz": 1.40, "air-factor": 3, "boundary-mode": "automatic", "h-boundary": 12, emissivity: .85, "rad-area": 1.80, "gas-transfer-mode": "automatic", "gas-eff": .80, "dielectric-mode": "looyenga", "bed-k-mode": "automatic", "field-wr": 1.20, "field-wz": 1.20 }
   },
   "sic-60-100-mesh": {
+    // The conductivity anchors below were refit against the solved field, on a
+    // 30x60 search mesh, and belong with it: fitted against the Gaussian source
+    // the same data asks for k800 = 27.5, near its upper bound of 30, to spread
+    // heat a 43%-too-peaked source should never have concentrated. Combined RMSE
+    // 5.50 C here against 5.67 C for that pairing and 8.85 C for what shipped.
+    // Grid sensitivity at these values is 2.78 K between 30x60 and 60x120, under
+    // the residual. fieldMode travels with the profile because the two are one
+    // calibration and must not be mixed.
+    fieldMode: "helmholtz",
     label: "SiC 60–100 mesh · as received", formula: "SiC", rhoSolid: 3210, calibrationLabel: "Embedded SiC 60–100 mesh power sweep · T_wall at quartz outer surface", dielectricNote: "SiC ε′(T), ε″(T) values are 20–800 °C half-degree-bin averages extracted from Sheet1 at approximately 2.404 GHz.", fitBounds: { k200: [.5, 30], k500: [.5, 30], k800: [.5, 30], radArea: [1, 12] },
     dielectric: `20,7.959225,0.398952
 25,7.969336,0.385909
@@ -56,7 +72,7 @@ export const materialProfiles = {
 30,331,411
 40,395,480`,
     cpSolid: 750,
-    defaults: { pabs: 40, frequency: 2.404, volume: 1.18, diameter: 10, length: 15, mass: 1.628, gas: "He", flow: 65.3, ambient: 20, "tube-thickness": 1, "gas-pressure": 1, "particle-diameter": 194, "fbg-r": 0, "fbg-z": 0, k200: 4.00, k500: 18.00, k800: 18.00, "kz-ratio": 1.00, "h-contact": 1500, "k-quartz": 1.40, "air-factor": 3, "boundary-mode": "automatic", "h-boundary": 12, emissivity: .85, "rad-area": 6.00, "gas-transfer-mode": "automatic", "gas-eff": .80, "dielectric-mode": "looyenga", "bed-k-mode": "automatic", "field-wr": 1.20, "field-wz": 1.20 }
+    defaults: { pabs: 40, frequency: 2.404, volume: 1.18, diameter: 10, length: 15, mass: 1.628, gas: "He", flow: 65.3, ambient: 20, "tube-thickness": 1, "gas-pressure": 1, "particle-diameter": 194, "fbg-r": 0, "fbg-z": 0, k200: 2.879, k500: 11.569, k800: 13.929, "kz-ratio": 1.00, "h-contact": 1500, "k-quartz": 1.40, "air-factor": 3, "boundary-mode": "automatic", "h-boundary": 12, emissivity: .85, "rad-area": 5.802, "gas-transfer-mode": "automatic", "gas-eff": .80, "dielectric-mode": "looyenga", "bed-k-mode": "automatic", "field-wr": 1.20, "field-wz": 1.20 }
   }
 };
 
@@ -338,10 +354,19 @@ export function solve2D(p) {
   // refitted alongside it rather than carried over.
   //
   // eps''(T) moves with temperature, so the field is stale as soon as T
-  // advances. It is refreshed every fieldEvery sweeps rather than every sweep:
-  // the field costs a Krylov solve where a temperature sweep costs two
-  // Gauss-Seidel passes, and eps'' varies slowly enough over 25 sweeps that the
-  // final refresh below settles it.
+  // advances. Refreshing it every fieldEvery outer steps rather than every step,
+  // measured on the SiC default at 30x60 where the Picard loop takes 36 steps:
+  //
+  //   every step   centre 482.6953   2396 ms
+  //   every 5      centre 482.6953   1050 ms
+  //   every 25     centre 482.6945    922 ms   <- default
+  //   never        centre 482.9295    803 ms
+  //
+  // 25 costs 0.0008 K against refreshing every step, which is nothing beside a
+  // 5.5 K calibration residual, while never refreshing costs 0.23 K. The
+  // constant was chosen when the outer loop ran thousands of Gauss-Seidel sweeps
+  // and the Krylov port cut it to tens, so it was worth re-measuring rather than
+  // carrying over; it survives.
   let solvedField = null, fieldSolve = null;
   const refreshField = () => {
     if (p.fieldMode !== "helmholtz") return;

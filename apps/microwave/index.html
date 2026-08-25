@@ -377,7 +377,7 @@
       const D=num("diameter")/1000,H=num("length")/1000;
       const p=Object.assign({
         materialId:$("material").value,materialLabel:profile.label,materialFormula:profile.formula,rhoSolid:profile.rhoSolid,cpSolid:profile.cpSolid,P:Math.max(0,num("pabs")),frequency:num("frequency")*1e9,volume:Math.PI*D*D*H/4*1e6,D,H,mass:num("mass"),gas:$("gas").value,flow:num("flow"),pressure:num("gas-pressure")*1e5,dp:num("particle-diameter")*1e-6,Ta:num("ambient"),
-        Nr:30,Nz:60,domainWidth:.03,domainHeight:.03,k200:num("k200"),k500:num("k500"),k800:num("k800"),kzRatio:num("kz-ratio"),hContact:num("h-contact"),kq:num("k-quartz"),tq:num("tube-thickness")/1000,airFactor:num("air-factor"),boundaryMode:$("boundary-mode").value,hBoundary:num("h-boundary"),epsTube:num("emissivity"),radArea:num("rad-area"),gasTransferMode:$("gas-transfer-mode").value,gasEff:num("gas-eff"),dielectricMode:$("dielectric-mode").value,bedKMode:$("bed-k-mode").value,fieldWr:num("field-wr"),fieldWz:num("field-wz"),fbgR:num("fbg-r")/1000,fbgZ:num("fbg-z")/1000,diel:parseRows($("dielectric-data").value,3),maxIter:6000,tol:3e-4,omega:1.05
+        Nr:30,Nz:60,domainWidth:.03,domainHeight:.03,k200:num("k200"),k500:num("k500"),k800:num("k800"),kzRatio:num("kz-ratio"),hContact:num("h-contact"),kq:num("k-quartz"),tq:num("tube-thickness")/1000,airFactor:num("air-factor"),boundaryMode:$("boundary-mode").value,hBoundary:num("h-boundary"),epsTube:num("emissivity"),radArea:num("rad-area"),gasTransferMode:$("gas-transfer-mode").value,gasEff:num("gas-eff"),dielectricMode:$("dielectric-mode").value,bedKMode:$("bed-k-mode").value,fieldWr:num("field-wr"),fieldWz:num("field-wz"),fieldMode:materialProfiles[$("material").value].fieldMode,fbgR:num("fbg-r")/1000,fbgZ:num("fbg-z")/1000,diel:parseRows($("dielectric-data").value,3),maxIter:6000,tol:3e-4,omega:1.05
       },overrides);
       if(!Object.prototype.hasOwnProperty.call(overrides,"volume"))p.volume=Math.PI*p.D*p.D*p.H/4*1e6;
       const rhoBulk=(p.mass/1000)/(p.volume*1e-6),refMass=profile.defaults.mass/1000,refVolume=profile.defaults.volume*1e-6;
@@ -400,7 +400,13 @@
            ?"The packing unit cell is not small against the bed or the in-material wavelength, so treating the bed as a continuum with mixed properties is not supported here."
            :hg.resolvedBelowUnitCell
              ?"Scale separation holds, but the mesh cell is now smaller than a particle: the grid is resolving structure this continuum model does not represent, and refining further converges an equation that has stopped describing the packing."
-             :"The packing unit cell is small against both the bed radius and the in-material wavelength, and the mesh stays coarser than a particle."},
+             :"The packing unit cell is small against both the bed radius and the in-material wavelength, and the mesh stays coarser than a particle.",
+         result:!hg.valid?"Not supported":hg.resolvedBelowUnitCell?"Past the refinement floor":"Supported",
+         details:[
+           "Particle diameter d<sub>p</sub> = "+s3(sol.p.dp*1e6)+" &micro;m against bed radius R = "+s3(sol.p.D*500)+" mm, so d<sub>p</sub>/R = "+s3(hg.macroRatio)+" (threshold 0.1).",
+           "In-material wavelength &lambda; = &lambda;<sub>0</sub>/&radic;&epsilon;&prime; = "+s3(hg.wavelength*1000)+" mm at the bed average temperature, so d<sub>p</sub>/&lambda; = "+s3(hg.waveRatio)+".",
+           "Mesh cell h = "+s3(hg.cellLength*1e6)+" &micro;m, so h/d<sub>p</sub> = "+s3(hg.cellPerParticle)+". Below one the grid resolves structure the continuum model does not carry, and refining further converges an equation that has stopped describing the packing.",
+         ]},
         {process:"Microwave deposition",
          diagnostic:"D<sub>p</sub>/R = "+s3(n.DpR),
          meaning:n.DpR>=1?"Microwave heating decreases gently from the wall toward the center.":n.DpR>=.5?"Microwave heating decreases from the wall toward the center.":"Microwave heating is concentrated near the bed surface.",

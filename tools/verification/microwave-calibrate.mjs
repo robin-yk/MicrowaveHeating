@@ -49,7 +49,7 @@ export function baseParameters(profile, overrides = {}) {
     epsTube: d.emissivity, radArea: d["rad-area"],
     gasTransferMode: d["gas-transfer-mode"], gasEff: d["gas-eff"],
     dielectricMode: d["dielectric-mode"], bedKMode: d["bed-k-mode"],
-    fieldWr: d["field-wr"], fieldWz: d["field-wz"],
+    fieldWr: d["field-wr"], fieldWz: d["field-wz"], fieldMode: profile.fieldMode,
     fbgR: d["fbg-r"] / 1000, fbgZ: d["fbg-z"] / 1000,
     diel: parseRows(profile.dielectric, 3),
     rhoBulk, voidFraction: clamp(1 - rhoBulk / profile.rhoSolid, 0.05, 0.95),
