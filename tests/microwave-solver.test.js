@@ -395,3 +395,31 @@ test("permittivityAt() takes the bed from the table and leaves gas and air at va
     assert.equal(permittivityAt(code, 300, p).im, 0);
   }
 });
+
+test("bedHomogenization() reports scale separation and the refinement floor", () => {
+  const p = makeParams("sic-60-100-mesh", { Nr: 30, Nz: 60 });
+  const sol = solve2D(p);
+  const h = sol.homogenization;
+  // The packing must be small against both the bed and the in-material
+  // wavelength for a mixing rule to stand in for the real geometry.
+  assert.ok(h.valid, `scale separation should hold: dp/R ${h.macroRatio}, dp/lambda ${h.waveRatio}`);
+  assert.ok(h.macroRatio < 0.1 && h.waveRatio < 0.1);
+  // 60-100 mesh SiC is 194 um in a 5 mm bed: coarse enough to be a continuum,
+  // and at 30x60 the 500 um cell still sits above a particle.
+  assert.ok(Math.abs(h.macroRatio - p.dp / (p.D / 2)) < 1e-12);
+  assert.equal(h.resolvedBelowUnitCell, false);
+  assert.ok(h.cellPerParticle > 2);
+});
+
+test("bedHomogenization() flags a mesh refined below the particle size", () => {
+  // Refinement has a floor, and it is material-specific. At 120x240 the 125 um
+  // radial cell is smaller than a 194 um SiC particle, so a grid study that
+  // reaches there is converging an equation that no longer describes the bed.
+  const fine = solve2D(makeParams("sic-60-100-mesh", { Nr: 120, Nz: 240 }));
+  assert.equal(fine.homogenization.resolvedBelowUnitCell, true);
+  assert.ok(fine.homogenization.cellPerParticle < 1);
+  // The finer TiO2 powder has room on the same grid.
+  const rutile = solve2D(makeParams("rutile-reduced-600c-30m", { Nr: 120, Nz: 240 }));
+  assert.equal(rutile.homogenization.resolvedBelowUnitCell, false);
+  assert.ok(rutile.homogenization.cellPerParticle > 2);
+});

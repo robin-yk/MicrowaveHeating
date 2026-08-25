@@ -392,7 +392,15 @@
       const centerFraction=100*Math.exp(-(sol.p.D/2)/Math.max(sol.dpCenter,1e-12)),highVoid=n.voidFraction>.75;
       const gasClosure=sol.p.gasTransferMode==="manual"?"Manual override":"Automatic · Wakao et al. correlation";
       const boundaryClosure=sol.p.boundaryMode==="manual"?"Manual override":"Churchill–Chu vertical-plate approximation";
+      const hg=sol.homogenization;
       const groups=[
+        {process:"Effective-medium validity",
+         diagnostic:"d<sub>p</sub>/R = "+s3(hg.macroRatio)+" · d<sub>p</sub>/&lambda; = "+s3(hg.waveRatio)+" · h/d<sub>p</sub> = "+s3(hg.cellPerParticle),
+         meaning:!hg.valid
+           ?"The packing unit cell is not small against the bed or the in-material wavelength, so treating the bed as a continuum with mixed properties is not supported here."
+           :hg.resolvedBelowUnitCell
+             ?"Scale separation holds, but the mesh cell is now smaller than a particle: the grid is resolving structure this continuum model does not represent, and refining further converges an equation that has stopped describing the packing."
+             :"The packing unit cell is small against both the bed radius and the in-material wavelength, and the mesh stays coarser than a particle."},
         {process:"Microwave deposition",
          diagnostic:"D<sub>p</sub>/R = "+s3(n.DpR),
          meaning:n.DpR>=1?"Microwave heating decreases gently from the wall toward the center.":n.DpR>=.5?"Microwave heating decreases from the wall toward the center.":"Microwave heating is concentrated near the bed surface.",

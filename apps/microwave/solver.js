@@ -182,6 +182,32 @@ export function naturalConvection(tempC, p) {
   return { Tfilm, Pr, Gr, Ra, Nu, h: Nu * k / L };
 }
 
+// The scale-separation check applied to this bed, and reported so that it is
+// actually asked. homogenizationValidity() has existed here, with tests, since
+// the porous-continuum closures were added -- and nothing ever called it. A
+// solver that can state when its own effective-medium assumption fails, but is
+// never asked, provides no more protection than one that cannot.
+//
+// Three ratios, because refinement has a floor as well as a ceiling:
+//
+//   dp / R       the packing unit cell against the scale the continuum varies on
+//   dp / lambda  the same cell against the wavelength inside the bed, which is
+//                what lets a mixing rule stand in for the real geometry
+//   h / dp       the MESH cell against the particle. Below one, the grid is
+//                resolving structure the continuum model does not represent, and
+//                further refinement buys convergence of an equation that has
+//                stopped describing the packing. At Nr = 120 the radial cell is
+//                125 um against a 194 um SiC particle, so a grid study that
+//                reaches there is past this floor and has to say so.
+export function bedHomogenization(p, mesh, tempC = 20) {
+  const permittivity = dielectric(tempC, p);
+  const wavelength = (c0 / p.frequency) / Math.sqrt(Math.max(permittivity.ep, 1e-9));
+  const base = homogenizationValidity({ unitCellLength: p.dp, macroLength: p.D / 2, wavelength });
+  const cell = Math.min(mesh.dr, mesh.dz);
+  return { ...base, wavelength, cellLength: cell, cellPerParticle: cell / Math.max(p.dp, 1e-30),
+    resolvedBelowUnitCell: cell < p.dp };
+}
+
 // Mesh, material map, and cell metrics for the axisymmetric domain. Extracted
 // so the flow solver and its tests build the exact same grid solve2D uses:
 // material 2 = packed bed, 1 = tube gas, 3 = quartz, 0 = outside air.
@@ -427,7 +453,7 @@ export function solve2D(p) {
   // Wiring these face mass flows into the energy equation is Stage 2's job.
   if (solvedField) refreshField();
   const darcy = p.flowMode === "off" ? null : darcyField({ p, T, material, dr, dz, areasZ });
-  return { p, T, heat, material, R, Ro, Rd, Hd, dr, dz, V, center, fbg, wall, surface, Tavg, Tmax, Tmin, Tout: gasTout, dpCenter: penetrationDepth(center, p), epsCenter: dielectric(center, p), qgas, qRadialBed, qAxialBed, qBoundary, qrad, balance, it, converged, maxDelta, linearIterations, linearResidual, field: fieldSolve, transport: lastTransport, gasEffectivenessUsed, hBoundaryEff, darcy };
+  return { p, T, heat, material, R, Ro, Rd, Hd, dr, dz, V, center, fbg, wall, surface, Tavg, Tmax, Tmin, Tout: gasTout, dpCenter: penetrationDepth(center, p), epsCenter: dielectric(center, p), qgas, qRadialBed, qAxialBed, qBoundary, qrad, balance, it, converged, maxDelta, linearIterations, linearResidual, field: fieldSolve, homogenization: bedHomogenization(p, mesh, Tavg), transport: lastTransport, gasEffectivenessUsed, hBoundaryEff, darcy };
 }
 
 export function transportNumbers(sol) {
