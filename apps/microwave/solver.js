@@ -304,7 +304,7 @@ export function solve2D(p) {
   // bed from above) and exits at the bottom, so this must walk j from high to low: the
   // loops below start Tin at ambient and carry it row-to-row in sampleRows order.
   for (let j = p.Nz - 1; j >= 0; j--) if (material[j][0] === 2) sampleRows.push(j);
-  let converged = false, maxDelta = Infinity, it = 0, lastTransport = packedBedTransport(p.Ta, p), gasEffectivenessUsed = p.gasTransferMode === "manual" ? p.gasEff : lastTransport.gasEffectiveness, hBoundaryEff = p.boundaryMode === "manual" ? p.hBoundary : naturalConvection(p.Ta, p).h;
+  let converged = false, maxDelta = Infinity, it = 0, linearIterations = 0, linearResidual = Infinity, lastTransport = packedBedTransport(p.Ta, p), gasEffectivenessUsed = p.gasTransferMode === "manual" ? p.gasEff : lastTransport.gasEffectiveness, hBoundaryEff = p.boundaryMode === "manual" ? p.hBoundary : naturalConvection(p.Ta, p).h;
   // p.fieldMode "helmholtz" replaces the fitted Gaussian-times-Beer-Lambert
   // shape with the solved frequency-domain field. Off by default: switching it
   // on changes every number the page reports, and the bed conductivities on the
@@ -323,7 +323,13 @@ export function solve2D(p) {
     solvedField = fieldSolve;
   };
   refreshField();
-  for (it = 0; it < p.maxIter; it++) {
+  // Each outer step now solves the linear system instead of sweeping it twice,
+  // so the iteration budget is a Picard count, not a relaxation count. p.omega
+  // came from an over-relaxed Gauss-Seidel and is not a Picard damping factor;
+  // clamp it to 1 and let the nonlinearity in k(T) and h_rad set the pace.
+  const picardRelaxation = Math.min(p.picardRelaxation ?? 1, 1);
+  const outerLimit = Math.min(p.maxIter, p.picardMaxIter ?? 400);
+  for (it = 0; it < outerLimit; it++) {
     if (solvedField && it > 0 && it % (p.fieldEvery ?? 25) === 0) refreshField();
     let bedTemp = 0, bedTempV = 0; for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) if (material[j][i] === 2) { bedTemp += T[j][i] * vols[i]; bedTempV += vols[i]; } bedTemp /= Math.max(bedTempV, 1e-30);
     let wallIndex = clamp(Math.floor(R / dr), 0, p.Nr - 1); for (let i = 0; i < p.Nr; i++) if (material[Math.floor(p.Nz / 2)][i] === 3) wallIndex = i; const wallGuess = T[Math.floor(p.Nz / 2)][wallIndex];
@@ -343,16 +349,59 @@ export function solve2D(p) {
       let sliceV = 0, sliceT = 0; for (let i = 0; i < p.Nr; i++) if (material[j][i] === 2) { sliceV += vols[i]; sliceT += vols[i] * T[j][i]; } sliceT /= sliceV;
       gasIn[j] = Tin; const eff = Cg > 0 ? 1 - Math.exp(-(UAg / sampleRows.length) / Cg) : 0; gasG[j] = Cg * eff; Tin += gasG[j] * (sliceT - Tin) / Math.max(Cg, 1e-30);
     }
+    // Assemble the linearised system, then solve it. k(T) and the radiation
+    // coefficient are frozen at the current field, which makes the outer loop a
+    // Picard iteration rather than a relaxation sweep.
+    const count = p.Nz * p.Nr, diag = new Float64Array(count), rhsVector = new Float64Array(count), edges = [];
+    const at = (i, j) => j * p.Nr + i;
+    // Row bed volume, hoisted: the relaxation form recomputed this inside the
+    // cell loop, making the gas-exchange term O(Nr) per cell for a value that is
+    // constant along the row.
+    const sliceVolume = Array.from({ length: p.Nz }, (_, j) => {
+      let total = 0;
+      for (let i = 0; i < p.Nr; i++) if (material[j][i] === 2) total += vols[i];
+      return total;
+    });
+    for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) {
+      const cell = at(i, j), re = (i + 1) * dr, Ae = 2 * Math.PI * re * dz, Az = areasZ[i], m = material[j][i];
+      rhsVector[cell] += heat[j][i];
+      // Each interior face is visited once, from its lower-index side, and adds
+      // the same conductance to both cells -- that symmetry is what makes the
+      // matrix suitable for conjugate gradients. The inner radial face at i = 0
+      // has zero area, which is the axis condition.
+      if (i < p.Nr - 1) {
+        const G = interfaceG(i, j, i + 1, j, Ae, dr, "r"), other = at(i + 1, j);
+        diag[cell] += G; diag[other] += G; edges.push([cell, other, G]);
+      } else { const G = hBoundaryEff * Ae; diag[cell] += G; rhsVector[cell] += G * p.Ta; }
+      if (j < p.Nz - 1) {
+        const G = interfaceG(i, j, i, j + 1, Az, dz, "z"), other = at(i, j + 1);
+        diag[cell] += G; diag[other] += G; edges.push([cell, other, G]);
+      } else { const G = hBoundaryEff * Az; diag[cell] += G; rhsVector[cell] += G * p.Ta; }
+      if (j === 0) { const G = hBoundaryEff * Az; diag[cell] += G; rhsVector[cell] += G * p.Ta; }
+      if (m === 2) {
+        const G = gasG[j] * vols[i] / Math.max(sliceVolume[j], 1e-30);
+        diag[cell] += G; rhsVector[cell] += G * gasIn[j];
+      }
+      if (m === 3 && i < p.Nr - 1 && material[j][i + 1] === 0) {
+        const Tk = T[j][i] + 273.15, Tak = p.Ta + 273.15;
+        const hrad = p.epsTube * p.radArea * sigma * (Tk + Tak) * (Tk * Tk + Tak * Tak), G = hrad * Ae;
+        diag[cell] += G; rhsVector[cell] += G * p.Ta;
+      }
+    }
+    const flat = new Float64Array(count);
+    for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) flat[at(i, j)] = T[j][i];
+    const linear = pcgThermal2D({ diag, rhs: rhsVector, edges }, flat);
+    linearIterations += linear.iterations; linearResidual = linear.relativeResidual;
     maxDelta = 0;
-    for (let sweep = 0; sweep < 2; sweep++) for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) {
-      const rw = i * dr, re = (i + 1) * dr, Aw = 2 * Math.PI * rw * dz, Ae = 2 * Math.PI * re * dz, Az = areasZ[i], m = material[j][i]; let sum = 0, rhs = heat[j][i];
-      if (i > 0) { const G = interfaceG(i, j, i - 1, j, Aw, dr, "r"); sum += G; rhs += G * T[j][i - 1]; }
-      if (i < p.Nr - 1) { const G = interfaceG(i, j, i + 1, j, Ae, dr, "r"); sum += G; rhs += G * T[j][i + 1]; } else { const G = hBoundaryEff * Ae; sum += G; rhs += G * p.Ta; }
-      if (j > 0) { const G = interfaceG(i, j, i, j - 1, Az, dz, "z"); sum += G; rhs += G * T[j - 1][i]; } else { const G = hBoundaryEff * Az; sum += G; rhs += G * p.Ta; }
-      if (j < p.Nz - 1) { const G = interfaceG(i, j, i, j + 1, Az, dz, "z"); sum += G; rhs += G * T[j + 1][i]; } else { const G = hBoundaryEff * Az; sum += G; rhs += G * p.Ta; }
-      if (m === 2) { let sliceV = 0; for (let ii = 0; ii < p.Nr; ii++) if (material[j][ii] === 2) sliceV += vols[ii]; const G = gasG[j] * vols[i] / sliceV; sum += G; rhs += G * gasIn[j]; }
-      if (m === 3 && i < p.Nr - 1 && material[j][i + 1] === 0) { const Tk = T[j][i] + 273.15, Tak = p.Ta + 273.15, hrad = p.epsTube * p.radArea * sigma * (Tk + Tak) * (Tk * Tk + Tak * Tak), G = hrad * Ae; sum += G; rhs += G * p.Ta; }
-      const next = clamp(rhs / Math.max(sum, 1e-30), p.Ta, 2500), updated = clamp(T[j][i] + p.omega * (next - T[j][i]), p.Ta, 2500); maxDelta = Math.max(maxDelta, Math.abs(updated - T[j][i])); T[j][i] = updated;
+    for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) {
+      const previous = T[j][i], solved = clamp(linear.x[at(i, j)], p.Ta, 2500);
+      // The Picard step is measured before relaxation. Measuring it after folds
+      // the relaxation factor into the convergence test, so a case damped to
+      // omega stops at a true step of maxDelta/omega while reporting converged --
+      // the same defect the Joule solver carried until its 2D grid study exposed
+      // it, and the reason two meshes could stop at two different accuracies.
+      maxDelta = Math.max(maxDelta, Math.abs(solved - previous));
+      T[j][i] = clamp(previous + picardRelaxation * (solved - previous), p.Ta, 2500);
     }
     if (maxDelta < p.tol) { converged = true; break; }
   }
@@ -378,7 +427,7 @@ export function solve2D(p) {
   // Wiring these face mass flows into the energy equation is Stage 2's job.
   if (solvedField) refreshField();
   const darcy = p.flowMode === "off" ? null : darcyField({ p, T, material, dr, dz, areasZ });
-  return { p, T, heat, material, R, Ro, Rd, Hd, dr, dz, V, center, fbg, wall, surface, Tavg, Tmax, Tmin, Tout: gasTout, dpCenter: penetrationDepth(center, p), epsCenter: dielectric(center, p), qgas, qRadialBed, qAxialBed, qBoundary, qrad, balance, it, converged, maxDelta, field: fieldSolve, transport: lastTransport, gasEffectivenessUsed, hBoundaryEff, darcy };
+  return { p, T, heat, material, R, Ro, Rd, Hd, dr, dz, V, center, fbg, wall, surface, Tavg, Tmax, Tmin, Tout: gasTout, dpCenter: penetrationDepth(center, p), epsCenter: dielectric(center, p), qgas, qRadialBed, qAxialBed, qBoundary, qrad, balance, it, converged, maxDelta, linearIterations, linearResidual, field: fieldSolve, transport: lastTransport, gasEffectivenessUsed, hBoundaryEff, darcy };
 }
 
 export function transportNumbers(sol) {
@@ -390,6 +439,60 @@ export function transportNumbers(sol) {
   const TaK = (p.Ta + 273.15), TairK = (p.Ta + sol.wall) / 2 + 273.15, Mair = .0289652, muAir = 1.81e-5 * Math.pow(TairK / 293.15, 1.5) * (293.15 + 111) / (TairK + 111), rhoAir = p.pressure * Mair / (Rg * TairK), cpAir = 1007, kAir = .0263 * Math.pow(TairK / 293.15, .76), PrAir = muAir * cpAir / kAir, nuAir = muAir / rhoAir, alphaAir = kAir / (rhoAir * cpAir), beta = 1 / TairK, Lc = p.domainHeight, dT = Math.abs(sol.wall - p.Ta), Gr = g * beta * dT * Math.pow(Lc, 3) / (nuAir * nuAir), Ra = Gr * PrAir, NuAir = Math.pow(.825 + .387 * Math.pow(Math.max(Ra, 0), 1 / 6) / Math.pow(1 + Math.pow(.492 / PrAir, 9 / 16), 8 / 27), 2), hNatural = NuAir * kAir / Lc;
   const kb = kBed(sol.Tavg, p), TwK = sol.wall + 273.15, hrad = p.epsTube * p.radArea * sigma * (TwK + TaK) * (TwK * TwK + TaK * TaK), BiContact = p.hContact * sol.R / kb, BiRadiation = hrad * sol.R / kb, DpR = sol.dpCenter / sol.R;
   return { TgK, rho, mu, cp, kg, alpha, Pr, Qactual, u, rhoBulk, voidFraction, ReD, Rep, ReInterstitial, PeD, Pep, Gz, NuD, hTube, NuP: packed.NuP, hParticle: packed.hgs, permeability, Da, dP, Eu, Ar, TairK, PrAir, Gr, Ra, NuAir, hNatural, kb, hrad, BiContact, BiRadiation, DpR, specificArea: packed.specificArea, UA: packed.UA, gasEffectiveness: sol.gasEffectivenessUsed, rhoCpEff: packed.rhoCpEff, outletPressure: packed.outletPressure, hBoundaryUsed: sol.hBoundaryEff };
+}
+
+
+// ---- Linear solve for the temperature field ---------------------------------
+//
+// Ported from the Joule solver, which has carried this pattern since its own 2D
+// work: assemble the linearised system once per outer iteration and hand it to a
+// Krylov solve, instead of relaxing it in place. The matrix here is symmetric --
+// every interior face contributes the same conductance to both of its cells --
+// and strictly diagonally dominant once the boundary, gas-exchange and radiation
+// terms are added, so it is positive definite and conjugate gradients apply.
+//
+// This is not a tidying exercise. Gauss-Seidel is why the microwave calibration
+// cannot currently be trusted: the coordinate search runs on a 10x30 mesh whose
+// centre temperature sits 27 K from the 30x60 answer, and fine meshes were too
+// expensive to search on. Converging the linear problem properly per iteration
+// is the precondition for calibrating on a grid where that error is smaller than
+// the residual being fitted.
+export function multiplyThermal2D(system, input, output) {
+  for (let i = 0; i < system.diag.length; i++) output[i] = system.diag[i] * input[i];
+  for (const [a, b, G] of system.edges) { output[a] -= G * input[b]; output[b] -= G * input[a]; }
+}
+
+export function pcgThermal2D(system, initial, maxIterations = 1500, tolerance = 1e-12) {
+  const n = system.diag.length, x = Float64Array.from(initial);
+  const r = new Float64Array(n), z = new Float64Array(n), q = new Float64Array(n), ap = new Float64Array(n);
+  multiplyThermal2D(system, x, ap);
+  let bNorm2 = 0, rz = 0;
+  for (let i = 0; i < n; i++) {
+    r[i] = system.rhs[i] - ap[i];
+    z[i] = r[i] / Math.max(system.diag[i], 1e-18);
+    q[i] = z[i]; rz += r[i] * z[i]; bNorm2 += system.rhs[i] * system.rhs[i];
+  }
+  const bNorm = Math.sqrt(Math.max(bNorm2, 1e-30));
+  let residual = 0;
+  for (let i = 0; i < n; i++) residual += r[i] * r[i];
+  let relative = Math.sqrt(residual) / bNorm, iteration = 0;
+  for (; iteration < maxIterations && relative > tolerance; iteration++) {
+    multiplyThermal2D(system, q, ap);
+    let qAp = 0;
+    for (let i = 0; i < n; i++) qAp += q[i] * ap[i];
+    if (Math.abs(qAp) < 1e-30) break;
+    const alpha = rz / qAp;
+    let next = 0;
+    for (let i = 0; i < n; i++) { x[i] += alpha * q[i]; r[i] -= alpha * ap[i]; next += r[i] * r[i]; }
+    relative = Math.sqrt(next) / bNorm;
+    if (relative <= tolerance) break;
+    let rzNext = 0;
+    for (let i = 0; i < n; i++) { z[i] = r[i] / Math.max(system.diag[i], 1e-18); rzNext += r[i] * z[i]; }
+    const beta = rzNext / Math.max(rz, 1e-30);
+    for (let i = 0; i < n; i++) q[i] = z[i] + beta * q[i];
+    rz = rzNext;
+  }
+  return { x, iterations: iteration + 1, relativeResidual: relative };
 }
 
 // ---- Frequency-domain field -------------------------------------------------

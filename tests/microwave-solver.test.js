@@ -211,22 +211,43 @@ test("darcyPermeability() uses the same constant as the Ergun viscous term", () 
   assert.equal(packedBedTransport(400, p).permeability, darcyPermeability(p));
 });
 
-test("solve2D() legacy temperatures are untouched by the flow-field diagnostic", () => {
-  // Stage 1 adds a Darcy solve but does not couple it to the energy equation, so
-  // these must stay bit-for-bit what they were before the flow solver existed.
-  // Values captured on the autoFit mesh from the commit that added them.
-  const p = makeParams("rutile-reduced-600c-30m", { Nr: 15, Nz: 30, maxIter: 3500, tol: 1.5e-3, omega: 1.08 });
-  const sol = solve2D(p);
-  const expected = {
-    center: 826.1530412131374, wall: 502.0457021673843, Tavg: 639.8001257911388,
-    Tout: 552.3499012252433, qgas: 0.41140303109916077, qBoundary: 7.101922904136165,
-    qrad: 18.492709840234983
-  };
-  for (const [key, want] of Object.entries(expected)) {
-    assert.ok(Math.abs(sol[key] - want) <= 1e-9 * Math.abs(want),
-      `${key} drifted: got ${sol[key]}, expected ${want}`);
+test("solve2D() temperatures are untouched by the flow-field diagnostic", () => {
+  // The Darcy solve is a diagnostic: it runs on the converged temperatures and
+  // nothing it produces feeds back into the energy equation. This used to be
+  // asserted by pinning seven temperatures and heat flows to 1e-9, captured from
+  // the commit that added the flow solver. That guarded the invariant only
+  // indirectly, and it broke the moment the linear solver changed -- replacing
+  // Gauss-Seidel relaxation with a Krylov solve moved the centre by 0.045 K,
+  // five orders of magnitude above the pinned tolerance and entirely from how
+  // the same equations are solved rather than which equations they are.
+  //
+  // Assert the invariant itself instead: switching the flow field off must leave
+  // every temperature bit-for-bit identical. That is exact, it is what the
+  // comment always claimed, and it survives any change to the solve.
+  const base = makeParams("rutile-reduced-600c-30m", { Nr: 15, Nz: 30, maxIter: 3500, tol: 1.5e-3, omega: 1.08 });
+  const withFlow = solve2D({ ...base });
+  const withoutFlow = solve2D({ ...base, flowMode: "off" });
+  assert.ok(withFlow.darcy, "the diagnostic should have run");
+  assert.equal(withoutFlow.darcy, null, "and should be absent when switched off");
+  for (const key of ["center", "wall", "Tavg", "Tmax", "Tmin", "surface", "fbg", "Tout", "qgas", "qBoundary", "qrad", "it"]) {
+    assert.equal(withFlow[key], withoutFlow[key], `${key} moved with the diagnostic`);
   }
-  assert.equal(sol.it, 107);
+  for (let j = 0; j < base.Nz; j++) for (let i = 0; i < base.Nr; i++) {
+    assert.equal(withFlow.T[j][i], withoutFlow.T[j][i], `T[${j}][${i}] moved with the diagnostic`);
+  }
+});
+
+test("solve2D() converges the linear system rather than relaxing it", () => {
+  // The Krylov port replaced two Gauss-Seidel sweeps per outer step with a full
+  // solve, so the outer loop is a Picard iteration: it should now take tens of
+  // steps rather than hundreds, and each should leave a tightly solved system.
+  const p = makeParams("sic-60-100-mesh", { Nr: 30, Nz: 60 });
+  const sol = solve2D(p);
+  assert.ok(sol.converged, "should converge");
+  assert.ok(sol.it < 200, `Picard steps ${sol.it} should be far below the old sweep count`);
+  assert.ok(sol.linearResidual < 1e-9, `linear residual ${sol.linearResidual}`);
+  assert.ok(sol.linearIterations > sol.it, "each Picard step runs its own linear solve");
+  assert.ok(Math.abs(sol.balance) / p.P < 5e-3, `power balance ${sol.balance}`);
 });
 
 test("darcyField() reproduces the analytic Darcy pressure drop on an isothermal bed", () => {

@@ -62,12 +62,18 @@ export function baseParameters(profile, overrides = {}) {
 
 const rootMeanSquare = (values) => Math.sqrt(values.reduce((sum, v) => sum + v * v, 0) / Math.max(1, values.length));
 
+// The page searched on a 10x30 mesh. With the linear system relaxed by
+// Gauss-Seidel that was the only affordable choice, and it put the objective 24 K
+// from the converged centre temperature while the residual being minimised was
+// about 10 K -- so the search moved parameters to cancel discretisation error.
+// The Krylov solve makes 30x60 cost about a second, where the same error is
+// 3.5 K and sits under the residual, so the search mesh is now the report mesh.
 export function evaluate(base, rows, coarse = true) {
   const results = [];
   for (const row of rows) {
     const p = { ...base, P: Math.max(0, row[0]),
-      Nr: coarse ? 10 : base.Nr, Nz: coarse ? 30 : base.Nz,
-      maxIter: coarse ? 3500 : base.maxIter, tol: coarse ? 1.5e-3 : base.tol, omega: coarse ? 1.08 : base.omega };
+      Nr: coarse ? (base.searchNr ?? 30) : base.Nr, Nz: coarse ? (base.searchNz ?? 60) : base.Nz,
+      maxIter: base.maxIter, tol: base.tol, omega: base.omega };
     const s = solve2D(p);
     results.push({ P: row[0], wallObs: row[1], centreObs: row[2], centre: s.fbg, wall: s.wall, converged: s.converged });
   }
