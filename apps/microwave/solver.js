@@ -305,7 +305,26 @@ export function solve2D(p) {
   // loops below start Tin at ambient and carry it row-to-row in sampleRows order.
   for (let j = p.Nz - 1; j >= 0; j--) if (material[j][0] === 2) sampleRows.push(j);
   let converged = false, maxDelta = Infinity, it = 0, lastTransport = packedBedTransport(p.Ta, p), gasEffectivenessUsed = p.gasTransferMode === "manual" ? p.gasEff : lastTransport.gasEffectiveness, hBoundaryEff = p.boundaryMode === "manual" ? p.hBoundary : naturalConvection(p.Ta, p).h;
+  // p.fieldMode "helmholtz" replaces the fitted Gaussian-times-Beer-Lambert
+  // shape with the solved frequency-domain field. Off by default: switching it
+  // on changes every number the page reports, and the bed conductivities on the
+  // Calibration tab were fitted against the old shape, so they have to be
+  // refitted alongside it rather than carried over.
+  //
+  // eps''(T) moves with temperature, so the field is stale as soon as T
+  // advances. It is refreshed every fieldEvery sweeps rather than every sweep:
+  // the field costs a Krylov solve where a temperature sweep costs two
+  // Gauss-Seidel passes, and eps'' varies slowly enough over 25 sweeps that the
+  // final refresh below settles it.
+  let solvedField = null, fieldSolve = null;
+  const refreshField = () => {
+    if (p.fieldMode !== "helmholtz") return;
+    fieldSolve = solveField2D({ p, T, mesh });
+    solvedField = fieldSolve;
+  };
+  refreshField();
   for (it = 0; it < p.maxIter; it++) {
+    if (solvedField && it > 0 && it % (p.fieldEvery ?? 25) === 0) refreshField();
     let bedTemp = 0, bedTempV = 0; for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) if (material[j][i] === 2) { bedTemp += T[j][i] * vols[i]; bedTempV += vols[i]; } bedTemp /= Math.max(bedTempV, 1e-30);
     let wallIndex = clamp(Math.floor(R / dr), 0, p.Nr - 1); for (let i = 0; i < p.Nr; i++) if (material[Math.floor(p.Nz / 2)][i] === 3) wallIndex = i; const wallGuess = T[Math.floor(p.Nz / 2)][wallIndex];
     lastTransport = packedBedTransport((bedTemp + p.Ta) / 2, p); gasEffectivenessUsed = p.gasTransferMode === "manual" ? p.gasEff : lastTransport.gasEffectiveness;
@@ -314,6 +333,7 @@ export function solve2D(p) {
     let norm = 0;
     for (let j = 0; j < p.Nz; j++) for (let i = 0; i < p.Nr; i++) {
       if (material[j][i] !== 2) { heat[j][i] = 0; continue; }
+      if (solvedField) { heat[j][i] = solvedField.heat[j * p.Nr + i] * vols[i]; norm += heat[j][i]; continue; }
       const r = (i + .5) * dr, z = (j + .5) * dz - Hd / 2, e = dielectric(T[j][i], p), field = Math.exp(-Math.pow(r / (Math.max(.05, p.fieldWr) * R), 2) - Math.pow(z / (Math.max(.05, p.fieldWz) * p.H / 2), 2)), attenuation = Math.exp(-(R - r) / penetrationDepth(T[j][i], p));
       heat[j][i] = e.epp * field * attenuation * vols[i]; norm += heat[j][i];
     }
@@ -356,8 +376,9 @@ export function solve2D(p) {
   // Solved on the converged temperatures and reported only: the energy sweep
   // above still uses the legacy gas march, so nothing here feeds back into T.
   // Wiring these face mass flows into the energy equation is Stage 2's job.
+  if (solvedField) refreshField();
   const darcy = p.flowMode === "off" ? null : darcyField({ p, T, material, dr, dz, areasZ });
-  return { p, T, heat, material, R, Ro, Rd, Hd, dr, dz, V, center, fbg, wall, surface, Tavg, Tmax, Tmin, Tout: gasTout, dpCenter: penetrationDepth(center, p), epsCenter: dielectric(center, p), qgas, qRadialBed, qAxialBed, qBoundary, qrad, balance, it, converged, maxDelta, transport: lastTransport, gasEffectivenessUsed, hBoundaryEff, darcy };
+  return { p, T, heat, material, R, Ro, Rd, Hd, dr, dz, V, center, fbg, wall, surface, Tavg, Tmax, Tmin, Tout: gasTout, dpCenter: penetrationDepth(center, p), epsCenter: dielectric(center, p), qgas, qRadialBed, qAxialBed, qBoundary, qrad, balance, it, converged, maxDelta, field: fieldSolve, transport: lastTransport, gasEffectivenessUsed, hBoundaryEff, darcy };
 }
 
 export function transportNumbers(sol) {
@@ -369,4 +390,138 @@ export function transportNumbers(sol) {
   const TaK = (p.Ta + 273.15), TairK = (p.Ta + sol.wall) / 2 + 273.15, Mair = .0289652, muAir = 1.81e-5 * Math.pow(TairK / 293.15, 1.5) * (293.15 + 111) / (TairK + 111), rhoAir = p.pressure * Mair / (Rg * TairK), cpAir = 1007, kAir = .0263 * Math.pow(TairK / 293.15, .76), PrAir = muAir * cpAir / kAir, nuAir = muAir / rhoAir, alphaAir = kAir / (rhoAir * cpAir), beta = 1 / TairK, Lc = p.domainHeight, dT = Math.abs(sol.wall - p.Ta), Gr = g * beta * dT * Math.pow(Lc, 3) / (nuAir * nuAir), Ra = Gr * PrAir, NuAir = Math.pow(.825 + .387 * Math.pow(Math.max(Ra, 0), 1 / 6) / Math.pow(1 + Math.pow(.492 / PrAir, 9 / 16), 8 / 27), 2), hNatural = NuAir * kAir / Lc;
   const kb = kBed(sol.Tavg, p), TwK = sol.wall + 273.15, hrad = p.epsTube * p.radArea * sigma * (TwK + TaK) * (TwK * TwK + TaK * TaK), BiContact = p.hContact * sol.R / kb, BiRadiation = hrad * sol.R / kb, DpR = sol.dpCenter / sol.R;
   return { TgK, rho, mu, cp, kg, alpha, Pr, Qactual, u, rhoBulk, voidFraction, ReD, Rep, ReInterstitial, PeD, Pep, Gz, NuD, hTube, NuP: packed.NuP, hParticle: packed.hgs, permeability, Da, dP, Eu, Ar, TairK, PrAir, Gr, Ra, NuAir, hNatural, kb, hrad, BiContact, BiRadiation, DpR, specificArea: packed.specificArea, UA: packed.UA, gasEffectiveness: sol.gasEffectivenessUsed, rhoCpEff: packed.rhoCpEff, outletPressure: packed.outletPressure, hBoundaryUsed: sol.hBoundaryEff };
+}
+
+// ---- Frequency-domain field -------------------------------------------------
+//
+// The shipped source is a fitted shape: a Gaussian in (r,z) whose widths are two
+// free inputs, multiplied by a Beer-Lambert skin measured inward from the bed
+// surface, then renormalised so the total equals the absorbed power. At this
+// geometry that is not merely approximate, it has the sign wrong. At 2.404 GHz
+// the free-space wavelength is 124.7 mm and SiC at eps' = 7.96 brings it to
+// 44.2 mm inside the bed, so a 10 mm bed spans D/lambda = 0.23 and |kR| = 0.71.
+// The penetration depth is 140 mm against a 5 mm radius, so the skin term varies
+// the source by 3.6% -- edge hot -- while the refraction it omits concentrates
+// the field on axis by 14%, which is 30% in power density, centre hot.
+//
+// Solving for the field instead removes both fitted widths radially and lets
+// eps''(T) feed back through the field rather than reweighting a fixed shape.
+// The equation is the scalar Helmholtz problem for an axial E in axisymmetric
+// coordinates,
+//
+//     (1/r) d/dr ( r dE/dr ) + d2E/dz2 + k0^2 eps(T,r,z) E = 0
+//
+// discretised by the same finite-volume pattern as the temperature field, on the
+// same mesh. Two things make this cheap rather than a project of its own: the
+// load is a quarter wavelength across, so it supports no internal cavity mode
+// and nothing outside it has to be meshed; and the existing 0.5 mm cells already
+// give 88 per wavelength.
+//
+// Scope, stated rather than implied. Scalar Helmholtz for E_z is exact when eps
+// varies with r alone; axial variation adds a grad(eps) coupling that is dropped
+// here, which is defensible only because the load is subwavelength. The incident
+// field is taken uniform for the same reason and imposed as E = 1 on the domain
+// boundary, so the solution is a shape and the absolute coupling efficiency is
+// still not predicted -- the total is renormalised to the absorbed power exactly
+// as before. Predicting how much power couples in needs the applicator.
+export function permittivityAt(code, tempC, p) {
+  if (code === 2) { const e = dielectric(tempC, p); return { re: e.ep, im: -e.epp }; }
+  if (code === 3) return { re: p.epsQuartz ?? 3.8, im: -(p.epsQuartzLoss ?? 1e-4) };
+  return { re: 1, im: 0 };
+}
+
+// BiCGSTAB on the real 2N block form of the complex system. The imaginary part
+// lives only on the diagonal -- face coefficients are real -- so the block
+// Jacobi preconditioner is an exact 2x2 inverse per cell.
+export function solveField2D({ p, T, mesh, maxIterations = 2000, tolerance = 1e-11 }) {
+  const { Nr, Nz } = { Nr: p.Nr, Nz: p.Nz }, { dr, dz, material, vols, areasZ } = mesh;
+  const n = Nr * Nz, idx = (i, j) => j * Nr + i;
+  const k0 = 2 * Math.PI * p.frequency / c0, k02 = k0 * k0;
+  const ar = new Float64Array(n), ai = new Float64Array(n);
+  const br = new Float64Array(n), bi = new Float64Array(n);
+  const gW = new Float64Array(n), gE = new Float64Array(n), gS = new Float64Array(n), gN = new Float64Array(n);
+  for (let j = 0; j < Nz; j++) for (let i = 0; i < Nr; i++) {
+    const q = idx(i, j), code = material[j][i], eps = permittivityAt(code, T[j][i], p);
+    // Inner radial face has zero area on the axis, which is the symmetry
+    // condition -- no special case needed.
+    const w = 2 * Math.PI * (i * dr) * dz / dr, e = 2 * Math.PI * ((i + 1) * dr) * dz / dr;
+    const s = areasZ[i] / dz, nn = areasZ[i] / dz;
+    gW[q] = w; gE[q] = e; gS[q] = s; gN[q] = nn;
+    const sum = w + e + s + nn;
+    ar[q] = sum - k02 * eps.re * vols[i];
+    ai[q] = -k02 * eps.im * vols[i];
+    // Uniform incident field on every outer face.
+    if (i === Nr - 1) { br[q] += e; }
+    if (j === 0) { br[q] += s; }
+    if (j === Nz - 1) { br[q] += nn; }
+  }
+  const mul = (xr, xi, yr, yi) => {
+    for (let j = 0; j < Nz; j++) for (let i = 0; i < Nr; i++) {
+      const q = idx(i, j);
+      let sr = ar[q] * xr[q] - ai[q] * xi[q], si = ai[q] * xr[q] + ar[q] * xi[q];
+      if (i > 0) { const m = idx(i - 1, j); sr -= gW[q] * xr[m]; si -= gW[q] * xi[m]; }
+      if (i < Nr - 1) { const m = idx(i + 1, j); sr -= gE[q] * xr[m]; si -= gE[q] * xi[m]; }
+      if (j > 0) { const m = idx(i, j - 1); sr -= gS[q] * xr[m]; si -= gS[q] * xi[m]; }
+      if (j < Nz - 1) { const m = idx(i, j + 1); sr -= gN[q] * xr[m]; si -= gN[q] * xi[m]; }
+      yr[q] = sr; yi[q] = si;
+    }
+  };
+  const precondition = (vr, vi, or_, oi) => {
+    for (let q = 0; q < n; q++) {
+      const d = ar[q] * ar[q] + ai[q] * ai[q] || 1e-30;
+      or_[q] = (ar[q] * vr[q] + ai[q] * vi[q]) / d;
+      oi[q] = (ar[q] * vi[q] - ai[q] * vr[q]) / d;
+    }
+  };
+  const alloc = () => [new Float64Array(n), new Float64Array(n)];
+  const [xr, xi] = alloc(), [rr, ri] = alloc(), [hr, hi] = alloc();
+  const [pr, pi] = alloc(), [vr, vi] = alloc(), [sr_, si_] = alloc();
+  const [tr, ti] = alloc(), [phr, phi] = alloc(), [shr, shi] = alloc();
+  for (let q = 0; q < n; q++) xr[q] = 1;
+  mul(xr, xi, vr, vi);
+  let bNorm = 0, rNorm = 0;
+  for (let q = 0; q < n; q++) {
+    rr[q] = br[q] - vr[q]; ri[q] = bi[q] - vi[q]; hr[q] = rr[q]; hi[q] = ri[q];
+    bNorm += br[q] * br[q] + bi[q] * bi[q]; rNorm += rr[q] * rr[q] + ri[q] * ri[q];
+  }
+  bNorm = Math.sqrt(Math.max(bNorm, 1e-30));
+  const dot = (a1, a2, b1, b2) => { let s = 0; for (let q = 0; q < n; q++) s += a1[q] * b1[q] + a2[q] * b2[q]; return s; };
+  let relative = Math.sqrt(rNorm) / bNorm, rhoOld = 1, alpha = 1, omega = 1, iteration = 0;
+  for (; iteration < maxIterations && relative > tolerance; iteration++) {
+    const rho = dot(hr, hi, rr, ri);
+    if (Math.abs(rho) < 1e-300) break;
+    const beta = (rho / rhoOld) * (alpha / (omega || 1e-30));
+    for (let q = 0; q < n; q++) {
+      pr[q] = rr[q] + beta * (pr[q] - omega * vr[q]);
+      pi[q] = ri[q] + beta * (pi[q] - omega * vi[q]);
+    }
+    precondition(pr, pi, phr, phi); mul(phr, phi, vr, vi);
+    const denominator = dot(hr, hi, vr, vi);
+    if (Math.abs(denominator) < 1e-300) break;
+    alpha = rho / denominator;
+    for (let q = 0; q < n; q++) { sr_[q] = rr[q] - alpha * vr[q]; si_[q] = ri[q] - alpha * vi[q]; }
+    precondition(sr_, si_, shr, shi); mul(shr, shi, tr, ti);
+    const tt = dot(tr, ti, tr, ti);
+    omega = tt > 1e-300 ? dot(tr, ti, sr_, si_) / tt : 0;
+    let next = 0;
+    for (let q = 0; q < n; q++) {
+      xr[q] += alpha * phr[q] + omega * shr[q];
+      xi[q] += alpha * phi[q] + omega * shi[q];
+      rr[q] = sr_[q] - omega * tr[q]; ri[q] = si_[q] - omega * ti[q];
+      next += rr[q] * rr[q] + ri[q] * ri[q];
+    }
+    relative = Math.sqrt(next) / bNorm;
+    if (Math.abs(omega) < 1e-300) break;
+    rhoOld = rho;
+  }
+  // Dissipation density follows |E|^2 weighted by the local loss, which is the
+  // only place eps'' enters the heating. Normalisation to the absorbed power is
+  // left to the caller, exactly as the fitted shape was.
+  const magnitude = new Float64Array(n), heat = new Float64Array(n);
+  for (let j = 0; j < Nz; j++) for (let i = 0; i < Nr; i++) {
+    const q = idx(i, j);
+    magnitude[q] = xr[q] * xr[q] + xi[q] * xi[q];
+    heat[q] = material[j][i] === 2 ? -permittivityAt(2, T[j][i], p).im * magnitude[q] : 0;
+  }
+  return { Er: xr, Ei: xi, magnitude, heat, iterations: iteration, relativeResidual: relative, k0 };
 }

@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import {
   materialProfiles, clamp, dielectric, kBed, penetrationDepth, solve2D, transportNumbers,
   axisymmetricTensor, homogenizationValidity, porousContinuumClosures, darcyVelocity,
-  bedMesh, darcyField, darcyPermeability, packedBedTransport, gasState, ERGUN_VISCOUS_CONSTANT
+  bedMesh, darcyField, darcyPermeability, packedBedTransport, gasState, ERGUN_VISCOUS_CONSTANT,
+  solveField2D, permittivityAt,
 } from "../apps/microwave/solver.js";
 
 // Bed extent on a given mesh: the row/column span of material 2, plus the axial
@@ -303,4 +304,73 @@ test("darcyField() degrades gracefully at zero flow and can be switched off", ()
   assert.equal(off.darcy, null);
   const on = solve2D(makeParams("rutile-reduced-600c-30m", { P: 0 }));
   assert.ok(on.darcy && Number.isFinite(on.darcy.dP), "the flow field should be reported by default");
+});
+
+// The field solve has an exact answer to be held against: an infinite lossy
+// dielectric cylinder in a uniform axial field carries E(r)/E(R) = J0(kr)/J0(kR)
+// with k = k0 sqrt(eps). J0 of a complex argument, by its Maclaurin series.
+function besselJ0(zr, zi) {
+  let sumR = 1, sumI = 0, termR = 1, termI = 0;
+  for (let m = 1; m < 60; m++) {
+    const z2r = zr * zr - zi * zi, z2i = 2 * zr * zi, scale = -1 / (4 * m * m);
+    const nextR = (termR * z2r - termI * z2i) * scale, nextI = (termR * z2i + termI * z2r) * scale;
+    termR = nextR; termI = nextI; sumR += termR; sumI += termI;
+    if (Math.hypot(termR, termI) < 1e-18) break;
+  }
+  return Math.hypot(sumR, sumI);
+}
+
+const EPS_REAL = 7.959225, EPS_LOSS = 0.398952, LIGHT = 299792458;
+
+function fieldCase({ Nr = 30, Nz = 60 } = {}) {
+  const p = {
+    D: 0.010, H: 0.19, tq: 0.001, Nr, Nz, domainWidth: 0.03, domainHeight: 0.20,
+    frequency: 2.404e9, dielectricMode: "manual", voidFraction: 0.4, referenceVoidFraction: 0.4,
+    diel: [[0, EPS_REAL, EPS_LOSS], [2000, EPS_REAL, EPS_LOSS]],
+  };
+  const mesh = bedMesh(p), T = Array.from({ length: Nz }, () => Array(Nr).fill(20));
+  const field = solveField2D({ p, T, mesh });
+  const k0 = 2 * Math.PI * p.frequency / LIGHT;
+  const magnitude = Math.hypot(EPS_REAL, EPS_LOSS), angle = Math.atan2(-EPS_LOSS, EPS_REAL) / 2;
+  const root = Math.sqrt(magnitude), kRe = k0 * root * Math.cos(angle), kIm = k0 * root * Math.sin(angle);
+  const jMid = Math.floor(Nz / 2);
+  let iEdge = 0;
+  for (let i = 0; i < Nr; i++) if (mesh.material[jMid][i] === 2) iEdge = i;
+  const at = (i) => Math.sqrt(field.magnitude[jMid * Nr + i]);
+  const rEdge = (iEdge + 0.5) * mesh.dr, edge = at(iEdge), edgeExact = besselJ0(kRe * rEdge, kIm * rEdge);
+  let worst = 0;
+  for (let i = 0; i <= iEdge; i++) {
+    const r = (i + 0.5) * mesh.dr;
+    const exact = besselJ0(kRe * r, kIm * r) / edgeExact;
+    worst = Math.max(worst, Math.abs(at(i) / edge / exact - 1));
+  }
+  return { field, worst, axisRatio: at(0) / edge };
+}
+
+test("solveField2D() reproduces the exact lossy-cylinder Bessel profile", () => {
+  const { field, worst, axisRatio } = fieldCase();
+  assert.ok(field.relativeResidual < 1e-9, `residual ${field.relativeResidual}`);
+  assert.ok(worst < 1e-3, `worst shape error ${worst}`);
+  // Refraction into a subwavelength load concentrates the field on the axis;
+  // any model that only attenuates inward from the surface has this backwards.
+  assert.ok(axisRatio > 1.1 && axisRatio < 1.15, `axis ratio ${axisRatio}`);
+});
+
+test("solveField2D() shape error falls with refinement", () => {
+  const coarse = fieldCase({ Nr: 15, Nz: 30 }).worst;
+  const fine = fieldCase({ Nr: 30, Nz: 60 }).worst;
+  const finer = fieldCase({ Nr: 60, Nz: 120 }).worst;
+  assert.ok(fine < coarse / 2, `${coarse} -> ${fine}`);
+  assert.ok(finer < fine / 2, `${fine} -> ${finer}`);
+});
+
+test("permittivityAt() takes the bed from the table and leaves gas and air at vacuum", () => {
+  const p = { dielectricMode: "manual", diel: [[0, 5, 2], [2000, 5, 2]], voidFraction: .4, referenceVoidFraction: .4 };
+  const bed = permittivityAt(2, 300, p);
+  assert.ok(Math.abs(bed.re - 5) < 1e-9);
+  assert.ok(Math.abs(bed.im + 2) < 1e-9, "loss enters as a negative imaginary part");
+  for (const code of [0, 1]) {
+    assert.equal(permittivityAt(code, 300, p).re, 1);
+    assert.equal(permittivityAt(code, 300, p).im, 0);
+  }
 });
