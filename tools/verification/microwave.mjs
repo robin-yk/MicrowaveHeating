@@ -102,12 +102,23 @@ export function physicalConvergence() {
     });
     const sol = solve2D(p);
     if (!sol.converged) throw new Error(`grid ${p.Nr}x${p.Nz} did not converge`);
+    // Refinement has a floor. Once the mesh cell drops below the packing unit
+    // cell the grid is resolving structure the continuum model does not carry,
+    // and an extrapolation through such a level converges an equation that has
+    // stopped describing the bed. This profile's 50 um powder leaves room at
+    // 120x240 (h/dp = 2.5); the coarser 194 um SiC would not, and a study on it
+    // has to stop at 60x120.
+    if (sol.homogenization.resolvedBelowUnitCell) {
+      throw new Error(`grid ${p.Nr}x${p.Nz} refines below the ${(p.dp * 1e6).toFixed(0)} um unit cell `
+        + `(h/dp = ${sol.homogenization.cellPerParticle.toFixed(2)}); the continuum model does not reach there`);
+    }
     rows.push({
       grid: `${p.Nr}×${p.Nz}`,
       center: sol.center, wall: sol.wall, Tavg: sol.Tavg,
       balance: Math.abs(sol.balance) / p.P,
       massImbalance: sol.darcy ? sol.darcy.maxMassImbalance / sol.darcy.massFlow : null,
-      it: sol.it,
+      it: sol.it, cellPerParticle: sol.homogenization.cellPerParticle,
+      linearResidual: sol.linearResidual,
     });
   }
   const rich = {
