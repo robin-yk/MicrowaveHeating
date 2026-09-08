@@ -5,6 +5,6 @@ import pytest
 
 @pytest.fixture
 def cfg():
-    cfg=json.loads((Path(__file__).parents[1]/"examples3d/itaca-cylinder.json").read_text())
+    cfg=json.loads((Path(__file__).parents[1]/"examples/itaca-cylinder.json").read_text())
     cfg["em"]["tube_apertures"]=False
     return cfg

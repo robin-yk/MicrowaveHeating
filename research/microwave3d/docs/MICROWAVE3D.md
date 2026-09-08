@@ -11,7 +11,7 @@ Existing microwave2D files are retained.
 
 ## Run locally
 
-Python 3.11 or newer is required. From the repository root:
+Python 3.11 or newer is required. From `research/microwave3d/`:
 
 ```sh
 python3 -m venv .venv

@@ -2,9 +2,12 @@
 
 ## Run
 
+Run from `research/microwave3d/`. Development is paused; these commands reproduce
+the preserved research implementation.
+
 ```sh
 .venv/bin/python -m pip install -e '.[test]'
-.venv/bin/python -m microwave3d.cli --config examples3d/itaca-monolith-ns.json --output results3d/monolith-ns
+.venv/bin/python -m microwave3d.cli --config examples/itaca-monolith-ns.json --output results3d/monolith-ns
 .venv/bin/python -m microwave3d.convergence --kind thermal --levels 2,3,4 --output results3d/channel-grid
 .venv/bin/python -m microwave3d.convergence --kind flow --levels 2,3,4 --output results3d/flow-grid
 # A separate, more expensive cavity-grid study:

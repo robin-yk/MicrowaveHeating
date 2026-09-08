@@ -61,7 +61,7 @@ def study(cfg,levels,kind='thermal',temperature_tolerance=1.,relative_tolerance=
 
 def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--config',default='examples3d/itaca-monolith-ns.json')
+    p.add_argument('--config',default='examples/itaca-monolith-ns.json')
     p.add_argument('--kind',choices=['thermal','flow','em'],default='thermal')
     p.add_argument('--levels',default='2,3,4')
     p.add_argument('--output',default='results3d/convergence')

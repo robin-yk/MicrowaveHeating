@@ -11,7 +11,7 @@ from microwave3d.solver import Coupled
 
 
 def monolith():
-    cfg=json.loads((Path(__file__).parents[1]/'examples3d/itaca-monolith-ns.json').read_text())
+    cfg=json.loads((Path(__file__).parents[1]/'examples/itaca-monolith-ns.json').read_text())
     cfg['mesh'].update(core_xy=4,outer_xy=2,core_z=4,outer_z=2)
     cfg['channels'].update(centres_m=[[0,0]],thermal_cells_across=2,thermal_cells_axial=6,flow_cells_across=2,flow_cells_axial=6)
     cfg['gas']['flow_sccm']=5

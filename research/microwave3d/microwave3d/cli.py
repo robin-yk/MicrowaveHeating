@@ -40,7 +40,7 @@ def save(path, summary, fields):
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description="3D Maxwell / Darcy or channel Navier-Stokes / thermal research model")
-    parser.add_argument("--config",default="examples3d/itaca-cylinder.json")
+    parser.add_argument("--config",default="examples/itaca-cylinder.json")
     parser.add_argument("--output",default="results3d/run")
     parser.add_argument("--power",type=float,help="Incident port power, W")
     parser.add_argument("--powers",help="Comma-separated incident powers, evaluated in the given continuation order")

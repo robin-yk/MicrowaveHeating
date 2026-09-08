@@ -37,7 +37,7 @@ def cylinder_modes(n,cfg):
 def main():
     p=argparse.ArgumentParser(); p.add_argument("--grids",default="8,12,16")
     p.add_argument("--output",default="results3d/verification/cylinder.json")
-    args=p.parse_args(); cfg=load_config("examples3d/itaca-cylinder.json")
+    args=p.parse_args(); cfg=load_config("examples/itaca-cylinder.json")
     rows=[]
     for n in map(int,args.grids.split(",")):
         row=cylinder_modes(n,cfg); rows.append(row); print(json.dumps(row),flush=True)

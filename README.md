@@ -1,23 +1,22 @@
-# Microwave Heating 2D Model
+# Microwave Heating Models
 
-## New: local 3D electromagnetic and thermal research solver
+The main browser application is **Microwave2D**. **Microwave3D is paused** and
+preserved as a separate research project; merging its history into main does
+not replace the 2D application or resume 3D development.
 
-The `microwave3d/` Python package adds a full vector Maxwell calculation,
-temperature-dependent heat deposition, a 3D thermal field, and optional coupled
-packed-bed Darcy flow or resolved square-channel Navier–Stokes flow. It includes incident-power/frequency sweeps and an offline
-3D field viewer. The ITACA cylindrical cavity envelope is based on the supplied
-Malhotra paper; the probe and material example remain assumptions. This is a
-numerically tested research prototype, not an experimentally validated reactor model.
+| Project | Location | Status / entry point |
+| --- | --- | --- |
+| Microwave2D | [apps/microwave/](apps/microwave/) | Existing browser application; open index.html |
+| Microwave3D | [research/microwave3d/](research/microwave3d/) | Paused Python research solver with its own examples, tests, and docs |
+| Single-screen UI experiment | [claude/microwave-simple-ui-ujh2kh](https://github.com/robin-yk/microwave-2D/tree/claude/microwave-simple-ui-ujh2kh) | Separate branch; not merged into main |
 
-For the 21-channel example, run `python -m microwave3d.cli --config examples3d/itaca-monolith-ns.json --output results3d/monolith-ns`.
-The channel solver retains 3D inertia and viscosity, uses no-slip walls, and
-couples conservative gas enthalpy transport to a separate solid/gas thermal mesh.
-It assumes constant flow density/viscosity and equal channel flow; manifolds and
-thermal expansion are not resolved. See the [channel methodology](docs/MICROWAVE3D-CHANNELS.md).
+Root `package.json`, `tests/`, `tools/`, `docs/`, and `assets/` belong to 2D.
+Python configuration and all tracked 3D files live under `research/microwave3d/`.
+Existing ignored `results3d/` exports and the local `.venv/` are preserved at the
+repository root. They are local artifacts, not another source project.
 
-See [setup, equations, and limitations](docs/MICROWAVE3D.md) and
-[input provenance](examples3d/README.md). The existing 2D application below is
-retained independently.
+See the [3D run instructions and path migration](research/microwave3d/README.md).
+The root browser entry still opens the existing 2D application.
 
 ## Existing 2D application
 

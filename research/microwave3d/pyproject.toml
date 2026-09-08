@@ -23,4 +23,4 @@ include = ["microwave3d*"]
 microwave3d = ["viewer.html"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests3d"]
+testpaths = ["tests"]
