@@ -73,8 +73,68 @@ to heat. Do not use the example curve to infer experimental centre temperature.
 
 ## Remaining validation work
 
-No loaded spatial convergence, frequency-quadrature convergence, experimental
-S11 fit, thermal-camera/FBG observation model, channel-resolved Navier–Stokes
-validation, or uncertainty intervals are claimed. The supplied paper uses a
-different, channel-resolved thermal/flow model and provides comparison targets,
-not automatic validation of this implementation.
+The channel extension adds an analytical flow benchmark and loaded channel-thermal
+mesh sensitivity, recorded below. No loaded **EM** grid convergence, frequency-quadrature
+convergence, experimental S11 fit, thermal-camera/FBG observation model, hot
+variable-density flow validation, or uncertainty intervals are claimed.
+The paper provides comparison targets, not automatic validation.
+
+## Resolved channel extension
+
+The Python suite now has 22 tests; the unchanged JavaScript suite has 25. All pass.
+The added tests verify square-duct pressure drop, no-slip walls, weak continuity,
+nonlinear momentum residual, phase-conservative intermesh heat transfer,
+coupled channel enthalpy and power closure, invalid geometry rejection, and
+agreement between iterative and direct thermal linear solves.
+
+For a 1.3 mm square channel, L = 15 mm, U = 0.05 m/s, μ = 1.76 × 10⁻⁵ Pa s,
+the Fourier-series pressure drop is 0.2222454614 Pa. With fully developed
+velocities prescribed at both ends and six axial cells:
+
+| Cross-section subdivisions | Centreline end-pressure difference error |
+| ---: | ---: |
+| 2 | +4.86786% |
+| 3 | +1.17123% |
+| 4 | +0.40507% |
+
+The reported production pressure drop instead uses FEM area integrals over
+the exact inlet/outlet planes. It does not use first/last cell centres, which
+would omit half-cell lengths and introduce an artificial axial-grid dependence.
+
+The 21-channel example at 130 W and 2.404 GHz converges with Re = 4.3353,
+boundary-to-boundary pressure drop 0.2292874 Pa, nonlinear NS residual
+3.26 × 10⁻¹¹, and conservative thermal-cell mass residual below 10⁻¹⁴.
+The coarse thermal transfer corrects the FEM face flux by 0.5854% in relative L2
+norm. This correction is explicitly reported and is not identified with the
+FEM continuity residual.
+
+This illustrative run absorbs only about 0.98 W in the sample because of the
+assumed untuned port. It is not an experimental temperature prediction. At
+the calculated gas temperatures, the ideal-gas density differs from the fixed
+flow-reference density by approximately 18%; the output flags this limitation.
+
+Targeted browser verification with agent-browser confirmed channel-only display,
+Navier–Stokes speed selection, and XY cross sections without browser errors.
+
+### Loaded channel-thermal refinement
+
+At the same 130 W, 2.404 GHz setting, the EM mesh stays 14 × 14 × 14 and the
+representative FEM flow stays 3 × 3 × 12 subdivisions. Thermal channel width
+and length are refined together. The first series used
+`python -m microwave3d.convergence --kind thermal --levels 3,4,5`;
+level 6 additionally uses `thermal_cells_across: 6` and
+`thermal_cells_axial: 36` in the same input case. The sequence can be reproduced
+with `--levels 3,4,5,6`.
+
+| Channel subdivisions across / axial | Full thermal grid | Sample maximum °C | Change from preceding level K |
+| --- | --- | ---: | ---: |
+| 3 / 18 | 34 × 34 × 26 | 82.2505 | — |
+| 4 / 24 | 38 × 38 × 32 | 80.9962 | 1.2543 |
+| 5 / 30 | 44 × 44 × 38 | 79.9353 | 1.0609 |
+| 6 / 36 | 48 × 48 × 44 | 79.0076 | 0.9277 |
+
+The final pair meets the 1 K temperature-change threshold; the preceding two
+pairs do not. This is a pairwise sensitivity result, **not** a 1 K error bound.
+The coarse cavity geometry, homogenized EM interfaces, radiation approximation,
+and fixed-density flow are unchanged. Their uncertainties are not reduced by
+this thermal refinement. These temperatures are illustrative model outputs.

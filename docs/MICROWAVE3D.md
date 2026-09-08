@@ -1,10 +1,13 @@
 # Microwave3D research solver
 
 This addition solves a vector electromagnetic field and a coupled three-dimensional
-thermal field locally using NumPy and SciPy. It also solves optional three-dimensional
-Darcy flow in a homogenized packed bed and puts its conservative face mass fluxes
-into the energy equation. It does **not** implement channel-resolved Navier–Stokes
-CFD of the monolith in the supplied paper. Existing microwave2D files are retained.
+thermal field locally using NumPy, SciPy, and scikit-fem. Flow can use three-dimensional
+Darcy flow in a homogenized packed bed or **resolved 3D incompressible Navier–Stokes**
+in square monolith channels. Both supply conservative face mass fluxes to the
+energy equation. The channel option resolves separate solid and gas cells,
+but assumes equal channel flows and constant flow density/viscosity.
+See [channel equations, coupling, and verification](MICROWAVE3D-CHANNELS.md).
+Existing microwave2D files are retained.
 
 ## Run locally
 
@@ -112,7 +115,7 @@ remain user-controlled and must be converged around narrow resonances.
 
 ## Thermal and porous-flow model
 
-The thermal unknown is one continuum cell temperature. In the sample it is a
+For the default packed-bed configuration, the thermal unknown is one continuum cell temperature. In the sample it is a
 local thermal-equilibrium (LTE) approximation. It cannot predict a pointwise
 solid–gas temperature difference in a channel or particle.
 
@@ -152,8 +155,11 @@ $$
 P_s+P_q=Q_{\mathrm{boundary}}+Q_{\mathrm{radiation}}+Q_{\mathrm{gas}}.
 $$
 
-All terms are recomputed at the final temperature, including a fresh Maxwell
-solve, material properties, Darcy fluxes, and radiation. Acceptance requires an
+All terms are evaluated consistently at the final temperature, including Maxwell
+fields, material properties, flow, and radiation. Maxwell fields are reused only
+when every electromagnetic property array, power, frequency, and dwell weight is
+unchanged. The constant-property channel flow is solved once per geometry and flow setting.
+Acceptance requires an
 undamped temperature-step tolerance, a global heat residual, and a cell residual.
 Energy balance alone does not establish mesh convergence or measurement agreement.
 
@@ -188,5 +194,6 @@ geometry or a validated port equivalent, actual metal-wall loss, measured comple
 dielectric curves with a clear conductivity convention, specimen-specific thermal
 properties, thermal enclosure conditions, and spatial/temperature reference data.
 Validate empty and loaded S11, frequency-averaged absorption, and temperatures on
-independent runs. Resolve monolith channels and laminar fluid mechanics before
-claiming reproduction of the paper's channel gas temperatures.
+independent runs. The new channel solver does not establish reproduction of the
+paper's gas temperatures: variable-density flow, the actual channel layout,
+upstream/downstream flow domains, and measured material curves remain necessary.

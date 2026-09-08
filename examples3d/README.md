@@ -1,5 +1,11 @@
 # Input cases
 
+`itaca-monolith-ns.json` provides **21 resolved square channels** with 3D
+incompressible Navier–Stokes and conjugate solid/gas heat transfer. It uses an
+explicitly assumed channel layout and constant reference flow properties.
+Its dielectric table is illustrative, not experimentally calibrated.
+See [channel methodology and remaining limits](../docs/MICROWAVE3D-CHANNELS.md).
+
 `itaca-cylinder.json` uses the supplied ITACA cavity envelope, 104.92 mm diameter
 and 85 mm height. The sample is an **illustrative effective SiC packed bed** in a
 10 mm ID tube, 15 mm long. Its material table, probe, wall metal conductivity,

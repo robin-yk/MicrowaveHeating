@@ -1,0 +1,195 @@
+{
+  "name": "ITACA | 21 square channels | resolved NS + conjugate heat",
+  "provenance": {
+    "cavity": "User-supplied experimental description: diameter 104.92 mm, height 85 mm, solid-state generator 2350–2500 MHz.",
+    "supplement": "Malhotra et al., Temperature Homogeneity under Selective and Localized Microwave Heating in Structured Flow Reactors, SI ie0c05580_si_001.pdf, pp. 1–5; supplied locally by user.",
+    "sample": "Malhotra et al. (2021), DOI 10.1021/acs.iecr.0c05580, p.6838: 21 square 1.3 mm channels, 15 mm monolith length, 10 mm ID tube. The 5-by-5-minus-corners layout and 1.65 mm pitch are ASSUMED; actual channel centres were not tabulated.",
+    "material": "SI uses k=50 W/(m K). Main-paper Figure 9 gives epsilon*=9.72-2.3j at 300 K for a DIFFERENT 19-round-channel case. This file borrows that room-temperature value and holds it constant: an illustrative scenario, NOT a calibrated reproduction of the 21-channel experiment. No extra conductivity is added.",
+    "port": "Radial ideal 50-ohm lumped probe; 8 mm length and mid-height position assumed. Actual coax dimensions, windows, and S11 calibration are unavailable. Main paper p. 6837 motivates impedance walls and first-order scattering boundaries at tube exits.",
+    "empty_cavity_loss": "Main paper pp. 6837–6838 reports 7–11 W empty-tube accepted power and an 8 ± 1 W comparison offset; this is recorded as evidence, not subtracted automatically from loaded runs.",
+    "flow": "3D P2/P1 incompressible laminar Navier-Stokes, equal flow split among identical straight channels, no-slip walls, smooth inlet profile, zero natural outlet traction. Constant rho/mu at reference_temperature_c; heating changes thermal conductivity and EM properties but not flow density/viscosity. No inlet/outlet manifold CFD."
+  },
+  "geometry": {
+    "cavity_diameter_m": 0.10492,
+    "cavity_height_m": 0.085,
+    "tube_inner_diameter_m": 0.01,
+    "tube_wall_m": 0.001,
+    "sample_length_m": 0.015,
+    "tube_offset_m": [
+      0,
+      0
+    ],
+    "sample_z_m": 0
+  },
+  "mesh": {
+    "core_xy": 6,
+    "outer_xy": 4,
+    "core_z": 6,
+    "outer_z": 4,
+    "subcell_samples": 12
+  },
+  "material": {
+    "name": "SiC solid, illustrative constant dielectric extension",
+    "table_columns": [
+      "temperature_c",
+      "epsilon_real",
+      "epsilon_loss",
+      "solid_k_w_mk"
+    ],
+    "table": [
+      [
+        20,
+        9.72,
+        2.3,
+        50
+      ],
+      [
+        1200,
+        9.72,
+        2.3,
+        50
+      ]
+    ],
+    "loss_definition": "total_measured",
+    "electrical_conductivity_s_m": 0
+  },
+  "quartz": {
+    "epsilon_real": 3.8,
+    "epsilon_loss": 0.0002,
+    "conductivity_w_mk": 1.4,
+    "thermal_emissivity": 0.85
+  },
+  "port": {
+    "resistance_ohm": 50,
+    "probe_length_m": 0.008,
+    "y_m": 0,
+    "z_m": 0
+  },
+  "em": {
+    "wall_model": "impedance",
+    "wall_conductivity_s_m": 58000000,
+    "tube_apertures": true,
+    "frequencies_hz": [
+      2404000000
+    ],
+    "dwell_weights": [
+      1
+    ]
+  },
+  "gas": {
+    "enabled": true,
+    "model": "navier_stokes",
+    "species": "N2",
+    "flow_sccm": 100,
+    "pressure_pa": 100000,
+    "inlet_c": 20,
+    "reference_temperature_c": 20
+  },
+  "thermal": {
+    "ambient_c": 20,
+    "wall_emissivity": 0.2,
+    "air_conductivity_factor": 1,
+    "contact_h_w_m2k": null
+  },
+  "solver": {
+    "thermal_linear_solver": "krylov",
+    "power_w": 130,
+    "max_iterations": 100,
+    "relaxation": 0.4,
+    "temperature_tolerance_k": 0.01,
+    "power_tolerance": 0.0001
+  },
+  "channels": {
+    "width_m": 0.0013,
+    "centres_m": [
+      [
+        -0.0033,
+        -0.00165
+      ],
+      [
+        -0.0033,
+        0
+      ],
+      [
+        -0.0033,
+        0.00165
+      ],
+      [
+        -0.00165,
+        -0.0033
+      ],
+      [
+        -0.00165,
+        -0.00165
+      ],
+      [
+        -0.00165,
+        0
+      ],
+      [
+        -0.00165,
+        0.00165
+      ],
+      [
+        -0.00165,
+        0.0033
+      ],
+      [
+        0,
+        -0.0033
+      ],
+      [
+        0,
+        -0.00165
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0.00165
+      ],
+      [
+        0,
+        0.0033
+      ],
+      [
+        0.00165,
+        -0.0033
+      ],
+      [
+        0.00165,
+        -0.00165
+      ],
+      [
+        0.00165,
+        0
+      ],
+      [
+        0.00165,
+        0.00165
+      ],
+      [
+        0.00165,
+        0.0033
+      ],
+      [
+        0.0033,
+        -0.00165
+      ],
+      [
+        0.0033,
+        0
+      ],
+      [
+        0.0033,
+        0.00165
+      ]
+    ],
+    "thermal_cells_across": 2,
+    "thermal_cells_axial": 12,
+    "flow_cells_across": 3,
+    "flow_cells_axial": 12
+  }
+}

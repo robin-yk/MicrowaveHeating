@@ -1,12 +1,12 @@
-"""Cell-centred conservative conduction, Darcy advection, and enclosure radiation."""
+"""Conservative conduction, flow enthalpy transport, and enclosure radiation."""
 from dataclasses import dataclass
 import numpy as np
 from scipy import sparse
-from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import spsolve, spilu, gmres, LinearOperator
 from .materials import SIGMA
 
 
-def conduction(grid, conductivity, ambient, contact_fraction=None, contact_h=None):
+def conduction(grid, conductivity, ambient, contact_fraction=None, contact_h=None, channel_fraction=None):
     n = grid.n; links = grid.links
     i,j = links[:,0].astype(int),links[:,1].astype(int)
     k = np.asarray(conductivity)
@@ -17,6 +17,10 @@ def conduction(grid, conductivity, ambient, contact_fraction=None, contact_h=Non
         contact = ((bed[i]>.5)&(quartz[j]>.5))|((quartz[i]>.5)&(bed[j]>.5))
         resistance = resistance + contact/contact_h
     G = links[:,3]/resistance
+    if channel_fraction is not None:
+        # Channel end planes are flow boundaries, not stagnant downstream cells.
+        end=(links[:,2]==2)&((channel_fraction[i]>.5) != (channel_fraction[j]>.5))
+        G[end]=0
     diag = np.bincount(np.r_[i,j],weights=np.r_[G,G],minlength=n)
     b = grid.boundary; cells = b[:,0].astype(int)
     gb = b[:,3]*k[cells]/b[:,4]
@@ -75,12 +79,18 @@ class ThermalResult:
 class Thermal:
     def __init__(self, grid, materials, cfg):
         self.grid,self.materials,self.cfg = grid,materials,cfg
+        self._preconditioner = None
 
     def operators(self, temperature, properties, flow):
         cfg,m,g = self.cfg,self.materials,self.grid
         ambient = cfg["thermal"]["ambient_c"]
         A,rhs,gb = conduction(g,properties["k"],ambient,
-            (m.bed,m.quartz),cfg["thermal"].get("contact_h_w_m2k"))
+            (m.bed,m.quartz),cfg["thermal"].get("contact_h_w_m2k"),m.fluid_fraction if cfg.get("channels") and flow is not None else None)
+        if cfg.get("channels") and flow is not None:
+            cells=flow.inlet_cells
+            gi=2*properties["k"][cells]*g.volume[cells]/g.cell_lengths[cells,2]**2
+            diag=np.zeros(g.n); np.add.at(diag,cells,gi)
+            A+=sparse.diags(diag); rhs+=diag*cfg["gas"]["inlet_c"]
         if flow is not None:
             adv,adv_rhs = advection(g,flow,cfg["gas"]["inlet_c"])
             A += adv; rhs += adv_rhs
@@ -91,7 +101,22 @@ class Thermal:
     def step(self, temperature, properties, flow, source_w_m3):
         A,rhs,_,_ = self.operators(temperature,properties,flow)
         rhs = rhs+source_w_m3*self.grid.volume
-        t = spsolve(A.tocsc(),rhs)
+        if self.cfg["solver"].get("thermal_linear_solver","direct") == "krylov":
+            scale=1/np.sqrt(A.diagonal())
+            D=sparse.diags(scale); balanced=(D@A@D).tocsc(); b=scale*rhs
+            for attempt in range(2):
+                if self._preconditioner is None or attempt:
+                    ilu=spilu(balanced,drop_tol=1e-4,fill_factor=12)
+                    self._preconditioner=LinearOperator(balanced.shape,ilu.solve)
+                y,info=gmres(balanced,b,x0=temperature/scale,M=self._preconditioner,
+                    rtol=1e-12,atol=1e-14,restart=60,maxiter=30)
+                t=scale*y
+                if info == 0 and np.max(abs(A@t-rhs)) < 1e-10*max(np.max(abs(rhs)),1.):
+                    break
+            else:
+                raise RuntimeError("Preconditioned thermal solve failed its explicit residual check")
+        else:
+            t = spsolve(A.tocsc(),rhs)
         if not np.all(np.isfinite(t)):
             raise RuntimeError("Thermal linear solve returned nonfinite temperatures")
         return t
@@ -101,6 +126,10 @@ class Thermal:
         A,rhs,gb,qr = self.operators(temperature,properties,flow)
         cell_residual = A@temperature-rhs-source_w_m3*g.volume
         qb = float(np.dot(gb,temperature[g.boundary[:,0].astype(int)]-self.cfg["thermal"]["ambient_c"]))
+        if self.cfg.get("channels") and flow is not None:
+            cells=flow.inlet_cells
+            gi=2*properties["k"][cells]*g.volume[cells]/g.cell_lengths[cells,2]**2
+            qb+=float(gi@(temperature[cells]-self.cfg["gas"]["inlet_c"]))
         qg = float(flow.cp*(flow.outlet_mass@temperature[flow.outlet_cells]-flow.inlet_mass.sum()*self.cfg["gas"]["inlet_c"])) if flow is not None else 0.
         deposited = float(source_w_m3@g.volume)
         residual = (deposited-qb-qr.sum()-qg)/max(deposited,1e-9)

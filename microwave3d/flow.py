@@ -23,6 +23,8 @@ class FlowResult:
     pressure_drop_pa: float
     mass_residual: float
     reynolds_particle_max: float
+    diagnostics: dict | None = None
+    resolved_velocity: np.ndarray | None = None
 
 
 def darcy(grid, fraction, temperature, cfg):
@@ -77,7 +79,8 @@ def darcy(grid, fraction, temperature, cfg):
 
 def cell_velocity(grid, fraction, temperature, cfg, flow):
     """Area-weighted reconstruction of superficial velocity for display/export."""
-    rho,_,_,_=gas_properties(temperature,cfg["gas"])
+    reference = cfg["gas"].get("reference_temperature_c",cfg["gas"]["inlet_c"]) if cfg.get("channels") else temperature
+    rho,_,_,_=gas_properties(np.broadcast_to(reference,(grid.n,)),cfg["gas"])
     velocity=np.zeros((grid.n,3)); weights=np.zeros((grid.n,3))
     for link,flux in zip(flow.links,flow.mass_flux):
         i,j,axis=map(int,link[:3]); area=link[3]*min(fraction[i],fraction[j])

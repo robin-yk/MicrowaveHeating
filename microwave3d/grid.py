@@ -15,6 +15,7 @@ class Grid:
     y: np.ndarray
     z: np.ndarray
     active: np.ndarray | None = None
+    electric: bool = True
 
     def __post_init__(self):
         self.axes = tuple(np.asarray(a, dtype=float) for a in (self.x, self.y, self.z))
@@ -30,7 +31,31 @@ class Grid:
         self.active = np.ones(self.n, bool) if self.active is None else np.asarray(self.active, bool).ravel()
         if len(self.active) != self.n or not np.any(self.active):
             raise ValueError("Empty or mismatched cavity mask")
-        self._topology()
+        self.cell_lengths = np.stack(np.meshgrid(*self.dx, indexing="ij"), axis=-1).reshape(-1, 3)
+        if self.electric:
+            self._topology()
+        else:
+            self._thermal_topology()
+
+    def _thermal_topology(self):
+        links, boundary = [], []
+        mask = self.active.reshape(self.shape)
+        for idx in np.ndindex(self.shape):
+            if not mask[idx]:
+                continue
+            i = self.ids[idx]
+            for axis in range(3):
+                area = self.volume[i]/self.cell_lengths[i,axis]
+                for sign in (-1,1):
+                    jdx = list(idx); jdx[axis] += sign
+                    if 0 <= jdx[axis] < self.shape[axis] and mask[tuple(jdx)]:
+                        if sign > 0:
+                            j = self.ids[tuple(jdx)]
+                            links.append((i,j,axis,area,self.cell_lengths[i,axis]/2,self.cell_lengths[j,axis]/2))
+                    else:
+                        boundary.append((i,axis,sign,area,self.cell_lengths[i,axis]/2,-1))
+        self.links = np.asarray(links).reshape(-1,6)
+        self.boundary = np.asarray(boundary).reshape(-1,6)
 
     def _topology(self):
         nx, ny, nz = self.shape

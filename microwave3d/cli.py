@@ -39,7 +39,7 @@ def save(path, summary, fields):
 
 
 def main(argv=None):
-    parser=argparse.ArgumentParser(description="3D vector microwave / porous thermal research model")
+    parser=argparse.ArgumentParser(description="3D Maxwell / Darcy or channel Navier-Stokes / thermal research model")
     parser.add_argument("--config",default="examples3d/itaca-cylinder.json")
     parser.add_argument("--output",default="results3d/run")
     parser.add_argument("--power",type=float,help="Incident port power, W")
@@ -58,7 +58,7 @@ def main(argv=None):
         out=Path(args.output)
         if args.spectrum_only:
             t=np.full(model.grid.n,cfg["thermal"]["ambient_c"])
-            runs,weights=model.maxwell.spectrum(model.materials.at(t),cfg["em"]["frequencies_hz"],cfg["solver"]["power_w"],cfg["em"]["dwell_weights"])
+            runs,weights=model.maxwell.spectrum(model.em_properties(t),cfg["em"]["frequencies_hz"],cfg["solver"]["power_w"],cfg["em"]["dwell_weights"])
             rows=[{"frequency_hz":e.frequency_hz,"s11_real":e.s11.real,"s11_imag":e.s11.imag,"reflected_fraction":abs(e.s11)**2,"sample_w":e.sample_w,"quartz_w":e.quartz_w,"wall_w":e.wall_w,"aperture_w":e.aperture_w,"balance":e.power_residual} for e in runs]
             out.mkdir(parents=True,exist_ok=True)
             (out/"spectrum.json").write_text(json.dumps({"temperature_c":cfg["thermal"]["ambient_c"],"config":cfg,"rows":rows},indent=2)+"\n")

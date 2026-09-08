@@ -12,8 +12,8 @@
 <div class="stats" id="stats"></div>
 <div class="panels">
 <section class="panel"><h2>Three-dimensional field</h2>
-<label>Quantity <select id="quantity"><option value="temperature_c">Temperature / °C</option><option value="e2_v2_m2">Electric field magnitude / V m⁻¹</option><option value="q_sample_w_m3">Sample deposition / W m⁻³</option><option value="pressure_gauge_pa">Bed pressure / Pa</option></select></label>
-<label>Show <select id="region"><option value="sample">Sample</option><option value="tube">Sample + quartz</option><option value="all">Full cavity</option></select></label>
+<label>Quantity <select id="quantity"><option value="temperature_c">Temperature / °C</option><option value="e2_v2_m2">Electric field magnitude / V m⁻¹</option><option value="q_sample_w_m3">Sample deposition / W m⁻³</option><option value="pressure_gauge_pa">Gas pressure / Pa</option><option value="superficial_speed_m_s">Conservative flow speed / m s⁻¹</option></select></label>
+<label>Show <select id="region"><option value="sample">Solid sample</option><option value="monolith">Solid + channel gas</option><option value="channels">Channel gas</option><option value="tube">Sample + quartz</option><option value="all">Full cavity</option></select></label>
 <canvas id="volume" aria-label="Rotatable three-dimensional calculated field"></canvas>
 <div class="legend"><span class="lo"></span><div class="ramp"></div><span class="hi"></span></div>
 <p class="small">Drag to rotate. Points represent computed cell averages. Changing the view does not run a new calculation.</p></section>
@@ -44,7 +44,8 @@ const row=(target,label,value)=>{const tr=document.createElement('tr'),a=documen
 for(const [k,label] of Object.entries({incident:'Incident port',reflected:'Reflected',sample:'Absorbed by sample',quartz:'Absorbed by quartz',metal_wall:'Microwave metal-wall loss',aperture_escape:'Microwave escape through tube apertures',thermal_boundary:'Thermal conduction to cavity boundary',thermal_radiation:'Net thermal radiation',gas_enthalpy:'Gas enthalpy rise'}))row('power',label,fmt(s.power_w[k],5)+' W');
 for(const [k,label] of Object.entries({sample_volume_average:'Sample volume average',sample_min:'Sample minimum',quartz_midplane_average:'Quartz midplane average'}))row('checks',label,fmt(s.temperature_c[k])+' °C');
 row('checks','EM balance residual',(100*s.residuals.em_relative).toExponential(2)+' %');row('checks','Thermal balance residual',(100*s.residuals.thermal_relative).toExponential(2)+' %');row('checks','Coupling iterations',String(s.iterations));
-if(s.flow)row('checks','Darcy pressure drop',fmt(s.flow.pressure_drop_pa)+' Pa');
+if(s.flow){row('checks','Flow pressure drop',fmt(s.flow.pressure_drop_pa,5)+' Pa');if(s.flow.diagnostics){const d=s.flow.diagnostics;row('checks','Flow model',d.model);row('checks','Hydraulic Reynolds number',fmt(d.reynolds_hydraulic,3));row('checks','NS nonlinear residual',d.relative_nonlinear_residual.toExponential(2));row('checks','Face-flux transfer correction',fmt(100*d.face_flux_projection_relative_l2,2)+' %');}}
+if(f.ns_speed_m_s){const o=document.createElement('option');o.value='ns_speed_m_s';o.textContent='Navier–Stokes speed / m s⁻¹';$('quantity').append(o);row('checks','Gas outlet (mass average)',fmt(s.temperature_c.channel_gas_outlet_mass_average)+' °C');$('region').value='monolith';}
 $('mesh').textContent=s.mesh.shape.join(' × ')+' cells | '+s.mesh.electric_unknowns+' electric unknowns | sample volume error '+fmt(s.mesh.sample_volume_relative_error*100)+'% | cavity volume error '+fmt(s.mesh.cavity_volume_relative_error*100)+'%';
 for(const e of s.spectrum){const tr=document.createElement('tr');for(const v of [fmt(e.frequency_hz/1e6,3),fmt(e.dwell_weight,3),fmt(e.reflected_fraction,5),fmt(e.sample_w,5)]){const td=document.createElement('td');td.textContent=v;tr.append(td);}$('spectrum').append(tr);}
 for(const x of s.assumptions){const li=document.createElement('li');li.textContent=x;$('assumptions').append(li);}for(const [k,v] of Object.entries(s.config.provenance||{})){const p=document.createElement('p');p.className='small';p.textContent=k+': '+v;$('provenance').append(p);}
@@ -54,15 +55,15 @@ const coords=[];for(let i=0;i<shape[0];i++)for(let j=0;j<shape[1];j++)for(let k=
 const stops=[[36,62,121],[22,136,165],[99,188,157],[229,217,104],[236,115,61],[152,43,55]];
 let values=[],lo=0,hi=1,yaw=.65,pitch=.3,drag=null;
 function colour(v){const t=Math.max(0,Math.min(.99999,(v-lo)/(hi-lo||1)))*5,i=Math.floor(t),a=stops[i],b=stops[i+1],u=t-i;return 'rgb('+a.map((x,j)=>Math.round(x+(b[j]-x)*u)).join(',')+')';}
-function inRegion(n){return f.active[n]&&($('region').value==='all'||f.sample_fraction[n]>.05||($('region').value==='tube'&&f.quartz_fraction[n]>.05));}
+function inRegion(n){const r=$('region').value,ch=(f.channel_fraction?.[n]||0)>.5;return f.active[n]&&(r==='all'||(r==='channels'?ch:f.sample_fraction[n]>.05||(r==='monolith'&&ch)||(r==='tube'&&f.quartz_fraction[n]>.05)));}
 function setup(canvas){const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,w,h);return [c,w,h];}
 function project(x,y,z){const xx=x*Math.cos(yaw)-y*Math.sin(yaw),yy=x*Math.sin(yaw)+y*Math.cos(yaw);return [xx,yy*Math.sin(pitch)-z*Math.cos(pitch),yy*Math.cos(pitch)+z*Math.sin(pitch)];}
-function bounds(){if($('region').value==='sample'){const r=s.config.geometry.tube_inner_diameter_m*.7,hh=s.config.geometry.sample_length_m*.7,[x,y]=s.config.geometry.tube_offset_m||[0,0];return [[x-r,x+r],[y-r,y+r],[-hh,hh]];}return axes.map(a=>[a[0],a.at(-1)]);}
+function bounds(){if(['sample','monolith','channels'].includes($('region').value)){const r=s.config.geometry.tube_inner_diameter_m*.7,hh=s.config.geometry.sample_length_m*.7,[x,y]=s.config.geometry.tube_offset_m||[0,0];return [[x-r,x+r],[y-r,y+r],[-hh,hh]];}return axes.map(a=>[a[0],a.at(-1)]);}
 function drawVolume(){const [c,w,h]=setup($('volume')),bb=bounds(),scale=Math.min(w,h)*.72/Math.max(bb[0][1]-bb[0][0],bb[2][1]-bb[2][0]);
 const pts=[];for(let n=0;n<coords.length;n++)if(inRegion(n)){const p=project(...coords[n]);pts.push([p[0],p[1],p[2],n]);}pts.sort((a,b)=>a[2]-b[2]);
 const all=$('region').value==='all';for(const [x,y,z,n] of pts){c.globalAlpha=all?.30:.85;c.fillStyle=colour(values[n]);c.beginPath();c.arc(w/2+x*scale,h/2+y*scale,all?2:3.2,0,2*Math.PI);c.fill();}c.globalAlpha=1;
 // Physical cavity outline: both circular end planes and vertical generators.
-c.strokeStyle='#899b94';c.lineWidth=1;const sample=$('region').value==='sample',rad=(sample?s.config.geometry.tube_inner_diameter_m:s.config.geometry.cavity_diameter_m)/2,hh=(sample?s.config.geometry.sample_length_m:s.config.geometry.cavity_height_m)/2;
+c.strokeStyle='#899b94';c.lineWidth=1;const sample=['sample','monolith','channels'].includes($('region').value),rad=(sample?s.config.geometry.tube_inner_diameter_m:s.config.geometry.cavity_diameter_m)/2,hh=(sample?s.config.geometry.sample_length_m:s.config.geometry.cavity_height_m)/2;
 for(const zz of [-hh,hh]){c.beginPath();for(let i=0;i<=100;i++){const a=2*Math.PI*i/100,p=project(rad*Math.cos(a),rad*Math.sin(a),zz);i?c.lineTo(w/2+p[0]*scale,h/2+p[1]*scale):c.moveTo(w/2+p[0]*scale,h/2+p[1]*scale);}c.stroke();}
 for(const a of [0,Math.PI/2,Math.PI,3*Math.PI/2]){const p=project(rad*Math.cos(a),rad*Math.sin(a),-hh),q=project(rad*Math.cos(a),rad*Math.sin(a),hh);c.beginPath();c.moveTo(w/2+p[0]*scale,h/2+p[1]*scale);c.lineTo(w/2+q[0]*scale,h/2+q[1]*scale);c.stroke();}
 c.fillStyle='#50645d';c.font='12px system-ui';c.fillText('x / y / z in physical metres',12,h-12);}

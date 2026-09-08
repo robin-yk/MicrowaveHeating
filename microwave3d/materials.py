@@ -29,6 +29,14 @@ class Materials:
         self.gas = f_inner * ~in_bed * grid.active
         self.air = grid.active.astype(float)-self.bed-self.quartz-self.gas
         self.fluid_fraction = self.bed.copy()
+        if cfg.get("channels"):
+            from .channels import fraction
+            channels = fraction(grid,cfg)
+            if np.any(channels > self.bed+1e-8):
+                raise ValueError("Channel volume exceeds the monolith volume; refine geometry quadrature")
+            self.bed -= channels
+            self.gas += channels
+            self.fluid_fraction = channels
         self.tube_area = np.zeros(grid.n)
         # Exact total cylinder area distributed among surface-containing cells.
         theta = 2*np.pi*(np.arange(4096)+.5)/4096
@@ -42,6 +50,8 @@ class Materials:
         self.cavity_area = 2*np.pi*(geo["cavity_diameter_m"]/2)*(geo["cavity_height_m"]+geo["cavity_diameter_m"]/2)
         self.sample_volume = float(np.dot(self.bed,grid.volume))
         self.sample_volume_exact = np.pi*r*r*geo["sample_length_m"]
+        if cfg.get("channels"):
+            self.sample_volume_exact -= len(cfg["channels"]["centres_m"])*cfg["channels"]["width_m"]**2*geo["sample_length_m"]
 
     def at(self, temperature):
         cfg = self.cfg
