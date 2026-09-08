@@ -1,5 +1,5 @@
 // Numerical verification of the microwave 2D solver
-// (apps/microwave/solver.js: solve2D). Three studies, printed as markdown:
+// (solver.js: solve2D). Three studies, printed as markdown:
 //
 //   1. Radial-parabola benchmark: public knobs alone can reduce solve2D to
 //      pure conduction with a uniform bed source (manual constant bed k,
@@ -24,7 +24,7 @@
 //
 // Run: node tools/verification/microwave.mjs
 "use strict";
-import { solve2D, kBed } from "../../apps/microwave/solver.js";
+import { solve2D, kBed } from "../../solver.js";
 import { richardson, markdownTable, sci, fix } from "./common.mjs";
 
 // The page's default inputs: the reduced-rutile TiO₂ calibration profile with

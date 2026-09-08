@@ -21,7 +21,7 @@
 //
 // Run: node tools/verification/microwave-calibrate.mjs [--material sic|rutile] [--quick]
 "use strict";
-import { materialProfiles, parseRows, solve2D, clamp } from "../../apps/microwave/solver.js";
+import { materialProfiles, parseRows, solve2D, clamp } from "../../solver.js";
 import { markdownTable, fix } from "./common.mjs";
 
 const FRACTIONS = [0.20, 0.08, 0.03, 0.012];

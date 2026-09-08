@@ -1,7 +1,7 @@
 # Numerical verification of the microwave 2D solver
 
 Extracted from the Electrification Suite verification report; the studies below
-are the ones that exercise `apps/microwave/solver.js`.
+are the ones that exercise `solver.js`.
 
 ## Methods
 
@@ -27,7 +27,7 @@ Four standard techniques are used:
    models (radiation, He purge flow, temperature-dependent properties) on a
    doubling grid sequence.
 
-## Microwave solver (`apps/microwave/solver.js`, `solve2D`)
+## Microwave solver (`solver.js`, `solve2D`)
 
 ### Scope note
 
@@ -79,7 +79,7 @@ differs from the 120×240 grid by 22.2 K at the bed center (2.9% of the rise),
 temperature, which is what the experimental calibration constrains, is
 grid-insensitive.
 
-## Microwave field solve (`apps/microwave/solver.js`, `solveField2D`)
+## Microwave field solve (`solver.js`, `solveField2D`)
 
 Opt-in through `p.fieldMode = "helmholtz"`; the shipped default still uses the
 fitted source, because switching over changes every number the page reports and

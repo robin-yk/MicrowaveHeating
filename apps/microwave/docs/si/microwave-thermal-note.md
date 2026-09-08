@@ -2,7 +2,7 @@
 
 *Draft for the dielectric-redox coupling manuscript. Numbering to be assigned on
 integration. All numbers in this note are reproducible from
-`apps/microwave/solver.js` at the commit recorded in Section S_x.9.*
+`solver.js` at the commit recorded in Section S_x.9.*
 
 ---
 
@@ -503,13 +503,13 @@ Stated plainly, because several of them bound the results above.
 ## S_x.9  Code and reproducibility
 
 The solver is the microwave module of the Electrification Suite
-(`apps/microwave/solver.js`), MIT-licensed, with unit tests and a verification
+(`solver.js`), MIT-licensed, with unit tests and a verification
 suite run in continuous integration. Every number in this note is produced by
 the scripts in `tools/si/`.
 
 | Item | Location |
 |---|---|
-| Solver core | `apps/microwave/solver.js` |
+| Solver core | `solver.js` |
 | Unit tests | `tests/microwave-solver.test.js` |
 | Verification suite | `tools/verification/microwave.mjs`, `docs/VERIFICATION.md` |
 | Note reproduction scripts | `tools/si/microwave-note.mjs` |

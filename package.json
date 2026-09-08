@@ -1,21 +1,17 @@
 {
-  "name": "microwave-2d",
+  "name": "microwave-models",
+  "private": true,
   "version": "0.1.0",
-  "description": "Browser-based 2D microwave heating model for powder beds, with a dependency-free solver module",
   "type": "module",
-  "license": "MIT",
-  "author": "Yeonsu Kwak",
+  "workspaces": ["apps/microwave"],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "node --test \"tests/*.test.js\"",
-    "verify:microwave": "node tools/verification/microwave.mjs",
-    "verify:field": "node tools/verification/microwave-field.mjs",
-    "verify:calibrate": "node tools/verification/microwave-calibrate.mjs",
-    "si:note": "node tools/si/microwave-note.mjs"
-  },
-  "devDependencies": {
-    "vite": "^5.4.10"
+    "dev": "npm run dev --workspace microwave-2d",
+    "build": "npm run build --workspace microwave-2d",
+    "preview": "npm run preview --workspace microwave-2d",
+    "test": "npm run test --workspace microwave-2d",
+    "verify:microwave": "npm run verify:microwave --workspace microwave-2d",
+    "verify:field": "npm run verify:field --workspace microwave-2d",
+    "verify:calibrate": "npm run verify:calibrate --workspace microwave-2d",
+    "si:note": "npm run si:note --workspace microwave-2d"
   }
 }

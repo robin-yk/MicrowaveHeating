@@ -1,5 +1,5 @@
 // Regression tests for the microwave-heating numeric core
-// (apps/microwave/solver.js). Pure Node, no browser: run with `node --test`.
+// (solver.js). Pure Node, no browser: run with `node --test`.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -7,7 +7,7 @@ import {
   axisymmetricTensor, homogenizationValidity, porousContinuumClosures, darcyVelocity,
   bedMesh, darcyField, darcyPermeability, packedBedTransport, gasState, ERGUN_VISCOUS_CONSTANT,
   solveField2D, permittivityAt,
-} from "../apps/microwave/solver.js";
+} from "../solver.js";
 
 // Bed extent on a given mesh: the row/column span of material 2, plus the axial
 // length and cross-section the analytic Darcy checks below need.

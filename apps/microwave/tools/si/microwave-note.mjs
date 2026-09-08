@@ -16,7 +16,7 @@
 //      node tools/si/microwave-note.mjs --invert    (Table S7;             ~20 min)
 //      node tools/si/microwave-note.mjs --grid      (thin-skin check;    ~1 h 45)
 "use strict";
-import { solve2D } from "../../apps/microwave/solver.js";
+import { solve2D } from "../../solver.js";
 import { defaultParams } from "../verification/microwave.mjs";
 import { markdownTable, fix } from "../verification/common.mjs";
 

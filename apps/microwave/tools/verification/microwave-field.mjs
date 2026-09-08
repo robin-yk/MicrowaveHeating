@@ -16,7 +16,7 @@
 //
 // Run: node tools/verification/microwave-field.mjs
 "use strict";
-import { bedMesh, solveField2D, penetrationDepth, dielectric, c0 } from "../../apps/microwave/solver.js";
+import { bedMesh, solveField2D, penetrationDepth, dielectric, c0 } from "../../solver.js";
 import { markdownTable, fix, sci } from "./common.mjs";
 
 // J0(z) for complex z by its Maclaurin series; |z| stays below 1 here, where the

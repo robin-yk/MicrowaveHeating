@@ -1,65 +1,72 @@
 # Microwave Heating Models
 
-The main browser application is **Microwave2D**. **Microwave3D is paused** and
-preserved as a separate research project; merging its history into main does
-not replace the 2D application or resume 3D development.
+## Start here
 
-| Project | Location | Status / entry point |
-| --- | --- | --- |
-| Microwave2D | [apps/microwave/](apps/microwave/) | Existing browser application; open index.html |
-| Microwave3D | [research/microwave3d/](research/microwave3d/) | Paused Python research solver with its own examples, tests, and docs |
-| Single-screen UI experiment | [claude/microwave-simple-ui-ujh2kh](https://github.com/robin-yk/microwave-2D/tree/claude/microwave-simple-ui-ujh2kh) | Separate branch; not merged into main |
+| What you need | Where to go |
+| --- | --- |
+| Use the 2D browser model | [apps/microwave/index.html](apps/microwave/index.html) |
+| Understand or change 2D | [2D project guide](apps/microwave/README.md) |
+| Inspect the paused 3D work | [3D research guide](research/microwave3d/README.md) |
+| Read 2D model limitations | [2D limits](apps/microwave/docs/LIMITS.md) |
 
-Root `package.json`, `tests/`, `tools/`, `docs/`, and `assets/` belong to 2D.
-Python configuration and all tracked 3D files live under `research/microwave3d/`.
-Existing ignored `results3d/` exports and the local `.venv/` are preserved at the
-repository root. They are local artifacts, not another source project.
+## Repository structure
 
-See the [3D run instructions and path migration](research/microwave3d/README.md).
-The root browser entry still opens the existing 2D application.
+Each project owns its code, tests, tools, and documentation.
 
-## Existing 2D application
-
-Steady 2D temperature field of a microwave-heated powder bed, with a dielectric
-response that follows the local temperature and a Helmholtz field solve, run
-entirely in the browser. By Yeonsu Kwak (Vlachos Lab, University of Delaware).
-
-Open `apps/microwave/index.html` in a browser. There is no build step and
-nothing to install.
-
-## Solver API
-
-The numeric core is a dependency-free, DOM-free ES module, importable in Node
-or in another page:
-
-```js
-import { solve2D, transportNumbers, materialProfiles } from "./apps/microwave/solver.js";
+```text
+apps/
+  microwave/          2D browser application
+    index.html        Interface
+    solver.js         Numerical model
+    tests/            Regression tests
+    tools/            Verification and note reproduction
+    docs/             Equations, limits, and verification records
+    assets/           Project images
+research/
+  microwave3d/        Paused 3D research project
+    microwave3d/      Python package and viewer template
+    examples/         Input cases
+    tests/            Numerical tests
+    tools/            Verification scripts
+    docs/             Methodology and verification records
+index.html            Existing redirect to the 2D application
+package.json          Root shortcuts to the 2D workspace
 ```
 
-`tests/microwave-solver.test.js` doubles as a worked example of its inputs and
-outputs.
+## Run the 2D application
 
-## Testing and verification
+The existing root and `apps/microwave/` page addresses are unchanged.
+For local development, from the repository root:
 
-```bash
-npm test                  # Node regression suite
-npm run verify:microwave  # grid convergence and the analytic benchmarks
-npm run verify:field      # the Helmholtz field solve
-npm run verify:calibrate  # what the calibration is actually fitting
+```sh
+npm install
+npm run dev
+npm test
+npm run build
 ```
 
-`docs/VERIFICATION.md` records what each study found, including the grid
-convergence the gas-exchange term breaks and the finding that the published
-calibration is partly fitting mesh error. `docs/LIMITS.md` states what the
-model does not do.
+Root commands forward to the 2D project. Its build output is
+`apps/microwave/dist/`. Verification commands remain `npm run verify:microwave`,
+`npm run verify:field`, `npm run verify:calibrate`, and `npm run si:note`.
+The 3D project has its own Python setup; see its guide rather than these npm commands.
 
-## History
+## Development status and preserved work
 
-This repository was split out of
-[Electrification Suite](https://github.com/robin-yk/Electrification-Suite),
-which kept the Joule heating and pulsed heating tools. The commit history of
-the microwave solver came across with it.
+- **2D:** existing browser application; model limitations are documented in its project.
+- **3D:** development paused. Source and numerical records are preserved on main,
+  separately from 2D. Merging the code does not resume development.
+- **Single-screen UI experiment:** remains on the separate
+  [claude/microwave-simple-ui-ujh2kh branch](https://github.com/robin-yk/microwave-2D/tree/claude/microwave-simple-ui-ujh2kh), not merged.
+- **Earlier 3D layout:** retained on `feat/microwave3d-emthermal`.
 
-## License
+Existing local `results3d/` exports and `.venv/` were not deleted or relocated.
+They are ignored artifacts, not source projects. Generated HTML results keep
+working at their existing paths. New project outputs stay inside their project
+and are excluded from Git.
 
-MIT (c) Yeonsu Kwak
+## History and license
+
+Split from [Electrification Suite](https://github.com/robin-yk/Electrification-Suite),
+which retained the Joule and pulsed-heating tools. The microwave solver's history
+is preserved. By Yeonsu Kwak (Vlachos Lab, University of Delaware).
+[MIT license](LICENSE).
