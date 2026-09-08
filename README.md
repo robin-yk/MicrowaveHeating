@@ -1,5 +1,20 @@
 # Microwave Heating 2D Model
 
+## New: local 3D electromagnetic and thermal research solver
+
+The `microwave3d/` Python package adds a full vector Maxwell calculation,
+temperature-dependent heat deposition, a 3D thermal field, and optional coupled
+packed-bed Darcy flow. It includes incident-power/frequency sweeps and an offline
+3D field viewer. The ITACA cylindrical cavity envelope is based on the supplied
+Malhotra paper; the probe and material example remain assumptions. This is a
+numerically tested research prototype, not validated monolith Navier–Stokes CFD.
+
+See [setup, equations, and limitations](docs/MICROWAVE3D.md) and
+[input provenance](examples3d/README.md). The existing 2D application below is
+retained independently.
+
+## Existing 2D application
+
 Steady 2D temperature field of a microwave-heated powder bed, with a dielectric
 response that follows the local temperature and a Helmholtz field solve, run
 entirely in the browser. By Yeonsu Kwak (Vlachos Lab, University of Delaware).

@@ -1,0 +1,5 @@
+# Versions used for the 2026-09-08 macOS arm64 / Python 3.12 verification.
+# pyproject.toml specifies compatible ranges for other supported platforms.
+numpy==2.5.3
+scipy==1.18.1
+pytest==9.1.1

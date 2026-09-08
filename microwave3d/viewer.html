@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Microwave3D | field inspection</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#173037;background:#f2f4f1;font-size:15px}*{box-sizing:border-box}body{margin:0}header,main,footer{max-width:1280px;margin:auto;padding:24px 32px}header{border-bottom:1px solid #ccd5ce;display:flex;justify-content:space-between;align-items:end;gap:20px}h1{margin:4px 0;font-size:32px;font-weight:650;letter-spacing:-1px}p{line-height:1.5;margin:8px 0}.eyebrow{font-size:12px;letter-spacing:2px;text-transform:uppercase}.status{font-size:13px;border:1px solid #8baba5;padding:8px 12px;border-radius:4px;white-space:nowrap}.bad{color:#922d22;border-color:#922d22}.notice{background:#fff5d9;border-left:3px solid #c09b32;padding:12px 16px;font-size:13px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#ccd5ce;border:1px solid #ccd5ce;margin:20px 0}.stat{background:white;padding:20px}.stat span{display:block;color:#61716b;font-size:12px}.stat strong{display:block;font-size:26px;margin-top:6px;font-weight:600}.panels{display:grid;grid-template-columns:1.1fr 1fr;gap:20px}.panel{background:white;border:1px solid #ccd5ce;padding:18px;min-width:0}h2{font-size:17px;margin:0 0 12px}canvas{width:100%;height:410px;display:block;touch-action:none;background:#f7f9f6}label{font-size:12px;color:#50645d;display:inline-flex;gap:8px;align-items:center;margin:6px 12px 8px 0}select,button{padding:7px;border:1px solid #bccbc3;background:#fff;color:inherit;border-radius:3px}input[type=range]{max-width:180px;width:35vw;vertical-align:middle}.legend{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin:10px 0;color:#50645d}.ramp{flex:1;height:12px;background:linear-gradient(90deg,#243e79,#1688a5,#63bc9d,#e5d968,#ec733d,#982b37)}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px 6px;border-bottom:1px solid #dce3dd}td:last-child{text-align:right;font-variant-numeric:tabular-nums}.small{font-size:12px;color:#65736e}details{margin-top:22px}summary{cursor:pointer;font-weight:600}li{line-height:1.5;margin:8px 0}footer{font-size:12px;color:#65736e}@media(max-width:800px){header,main,footer{padding:20px}.panels{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}canvas{height:340px}header{align-items:start;flex-direction:column}}
+</style>
+<header><div><div class="eyebrow">Research field inspection</div><h1>Microwave3D</h1><p id="name"></p></div><div class="status" id="status"></div></header>
+<main>
+<p class="notice">Illustrative material and lumped probe. Numerical checks do not establish experimental accuracy. The cylindrical wall is represented by a stepped grid.</p>
+<div class="stats" id="stats"></div>
+<div class="panels">
+<section class="panel"><h2>Three-dimensional field</h2>
+<label>Quantity <select id="quantity"><option value="temperature_c">Temperature / °C</option><option value="e2_v2_m2">Electric field magnitude / V m⁻¹</option><option value="q_sample_w_m3">Sample deposition / W m⁻³</option><option value="pressure_gauge_pa">Bed pressure / Pa</option></select></label>
+<label>Show <select id="region"><option value="sample">Sample</option><option value="tube">Sample + quartz</option><option value="all">Full cavity</option></select></label>
+<canvas id="volume" aria-label="Rotatable three-dimensional calculated field"></canvas>
+<div class="legend"><span class="lo"></span><div class="ramp"></div><span class="hi"></span></div>
+<p class="small">Drag to rotate. Points represent computed cell averages. Changing the view does not run a new calculation.</p></section>
+<section class="panel"><h2>Section through the calculation</h2>
+<label>Plane <select id="plane"><option value="xz">XZ</option><option value="xy">XY</option><option value="yz">YZ</option></select></label>
+<label>Position <input type="range" id="slice" min="0" step="1"><span id="position"></span></label>
+<canvas id="section" aria-label="Calculated field on a selectable plane"></canvas>
+<div class="legend"><span class="lo"></span><div class="ramp"></div><span class="hi"></span></div>
+<p class="small">Shared colour scale. Cells retain their actual nonuniform dimensions.</p></section>
+<section class="panel"><h2>Power balance</h2><table><tbody id="power"></tbody></table><p class="small">Accepted port power = incident − reflected. Metal-wall absorption goes to the prescribed cooled wall. Sample and quartz deposition enter the thermal solution.</p></section>
+<section class="panel"><h2>Temperatures and numerical checks</h2><table><tbody id="checks"></tbody></table><p id="mesh" class="small"></p></section>
+</div>
+<details open><summary>Frequency dwell and reflection</summary><p class="small">S₁₁ is an amplitude coefficient; the reflected power fraction is |S₁₁|². Dwell-weighted heat is averaged incoherently.</p><table><thead><tr><th>MHz</th><th>Dwell weight</th><th>Reflected fraction</th><th>Sample / W</th></tr></thead><tbody id="spectrum"></tbody></table></details>
+<details><summary>Assumptions and input provenance</summary><ul id="assumptions"></ul><div id="provenance"></div></details>
+</main><footer>Local, self-contained result. Full numeric fields are provided in fields.npz and fields.vtk; inputs and convergence history are in result.json.</footer>
+<script>/*__RESULT_DATA__*/</script>
+<script>
+"use strict";
+if (!window.RESULT) {document.getElementById('status').textContent='Run the solver to generate this viewer';} else {
+const {summary:s,fields:f}=window.RESULT, $=id=>document.getElementById(id);
+const fmt=(v,n=2)=>(Math.abs(Number(v))<.5*10**(-n)?0:Number(v)).toLocaleString('en-US',{maximumFractionDigits:n,minimumFractionDigits:n});
+$('name').textContent=s.name;
+$('status').textContent=s.converged?'Numerically converged | experimental validation pending':'NOT CONVERGED';
+if(!s.converged)$('status').classList.add('bad');
+const cards=[['Incident port power',s.power_w.incident,'W'],['Sample absorption',s.power_w.sample,'W'],['Centre cell',s.temperature_c.sample_centre_cell,'°C'],['Sample maximum',s.temperature_c.sample_max,'°C']];
+for(const [label,value,unit] of cards){const d=document.createElement('div');d.className='stat';const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=fmt(value)+' '+unit;d.append(l,v);$('stats').append(d);}
+const row=(target,label,value)=>{const tr=document.createElement('tr'),a=document.createElement('td'),b=document.createElement('td');a.textContent=label;b.textContent=value;tr.append(a,b);$(target).append(tr);};
+for(const [k,label] of Object.entries({incident:'Incident port',reflected:'Reflected',sample:'Absorbed by sample',quartz:'Absorbed by quartz',metal_wall:'Microwave metal-wall loss',aperture_escape:'Microwave escape through tube apertures',thermal_boundary:'Thermal conduction to cavity boundary',thermal_radiation:'Net thermal radiation',gas_enthalpy:'Gas enthalpy rise'}))row('power',label,fmt(s.power_w[k],5)+' W');
+for(const [k,label] of Object.entries({sample_volume_average:'Sample volume average',sample_min:'Sample minimum',quartz_midplane_average:'Quartz midplane average'}))row('checks',label,fmt(s.temperature_c[k])+' °C');
+row('checks','EM balance residual',(100*s.residuals.em_relative).toExponential(2)+' %');row('checks','Thermal balance residual',(100*s.residuals.thermal_relative).toExponential(2)+' %');row('checks','Coupling iterations',String(s.iterations));
+if(s.flow)row('checks','Darcy pressure drop',fmt(s.flow.pressure_drop_pa)+' Pa');
+$('mesh').textContent=s.mesh.shape.join(' × ')+' cells | '+s.mesh.electric_unknowns+' electric unknowns | sample volume error '+fmt(s.mesh.sample_volume_relative_error*100)+'% | cavity volume error '+fmt(s.mesh.cavity_volume_relative_error*100)+'%';
+for(const e of s.spectrum){const tr=document.createElement('tr');for(const v of [fmt(e.frequency_hz/1e6,3),fmt(e.dwell_weight,3),fmt(e.reflected_fraction,5),fmt(e.sample_w,5)]){const td=document.createElement('td');td.textContent=v;tr.append(td);}$('spectrum').append(tr);}
+for(const x of s.assumptions){const li=document.createElement('li');li.textContent=x;$('assumptions').append(li);}for(const [k,v] of Object.entries(s.config.provenance||{})){const p=document.createElement('p');p.className='small';p.textContent=k+': '+v;$('provenance').append(p);}
+const shape=s.mesh.shape,axes=[f.x_m,f.y_m,f.z_m],centres=axes.map(a=>a.slice(1).map((v,i)=>(v+a[i])/2));
+const index=(i,j,k)=>(i*shape[1]+j)*shape[2]+k;
+const coords=[];for(let i=0;i<shape[0];i++)for(let j=0;j<shape[1];j++)for(let k=0;k<shape[2];k++)coords.push([centres[0][i],centres[1][j],centres[2][k]]);
+const stops=[[36,62,121],[22,136,165],[99,188,157],[229,217,104],[236,115,61],[152,43,55]];
+let values=[],lo=0,hi=1,yaw=.65,pitch=.3,drag=null;
+function colour(v){const t=Math.max(0,Math.min(.99999,(v-lo)/(hi-lo||1)))*5,i=Math.floor(t),a=stops[i],b=stops[i+1],u=t-i;return 'rgb('+a.map((x,j)=>Math.round(x+(b[j]-x)*u)).join(',')+')';}
+function inRegion(n){return f.active[n]&&($('region').value==='all'||f.sample_fraction[n]>.05||($('region').value==='tube'&&f.quartz_fraction[n]>.05));}
+function setup(canvas){const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,w,h);return [c,w,h];}
+function project(x,y,z){const xx=x*Math.cos(yaw)-y*Math.sin(yaw),yy=x*Math.sin(yaw)+y*Math.cos(yaw);return [xx,yy*Math.sin(pitch)-z*Math.cos(pitch),yy*Math.cos(pitch)+z*Math.sin(pitch)];}
+function bounds(){if($('region').value==='sample'){const r=s.config.geometry.tube_inner_diameter_m*.7,hh=s.config.geometry.sample_length_m*.7,[x,y]=s.config.geometry.tube_offset_m||[0,0];return [[x-r,x+r],[y-r,y+r],[-hh,hh]];}return axes.map(a=>[a[0],a.at(-1)]);}
+function drawVolume(){const [c,w,h]=setup($('volume')),bb=bounds(),scale=Math.min(w,h)*.72/Math.max(bb[0][1]-bb[0][0],bb[2][1]-bb[2][0]);
+const pts=[];for(let n=0;n<coords.length;n++)if(inRegion(n)){const p=project(...coords[n]);pts.push([p[0],p[1],p[2],n]);}pts.sort((a,b)=>a[2]-b[2]);
+const all=$('region').value==='all';for(const [x,y,z,n] of pts){c.globalAlpha=all?.30:.85;c.fillStyle=colour(values[n]);c.beginPath();c.arc(w/2+x*scale,h/2+y*scale,all?2:3.2,0,2*Math.PI);c.fill();}c.globalAlpha=1;
+// Physical cavity outline: both circular end planes and vertical generators.
+c.strokeStyle='#899b94';c.lineWidth=1;const sample=$('region').value==='sample',rad=(sample?s.config.geometry.tube_inner_diameter_m:s.config.geometry.cavity_diameter_m)/2,hh=(sample?s.config.geometry.sample_length_m:s.config.geometry.cavity_height_m)/2;
+for(const zz of [-hh,hh]){c.beginPath();for(let i=0;i<=100;i++){const a=2*Math.PI*i/100,p=project(rad*Math.cos(a),rad*Math.sin(a),zz);i?c.lineTo(w/2+p[0]*scale,h/2+p[1]*scale):c.moveTo(w/2+p[0]*scale,h/2+p[1]*scale);}c.stroke();}
+for(const a of [0,Math.PI/2,Math.PI,3*Math.PI/2]){const p=project(rad*Math.cos(a),rad*Math.sin(a),-hh),q=project(rad*Math.cos(a),rad*Math.sin(a),hh);c.beginPath();c.moveTo(w/2+p[0]*scale,h/2+p[1]*scale);c.lineTo(w/2+q[0]*scale,h/2+q[1]*scale);c.stroke();}
+c.fillStyle='#50645d';c.font='12px system-ui';c.fillText('x / y / z in physical metres',12,h-12);}
+function planeDims(){return $('plane').value==='xy'?[0,1,2]:$('plane').value==='xz'?[0,2,1]:[1,2,0];}
+function resetSlice(){const [a,b,d]=planeDims();$('slice').max=shape[d]-1;$('slice').value=Math.floor(shape[d]/2);}
+function drawSection(){const [c,w,h]=setup($('section')),[a,b,d]=planeDims(),slice=Number($('slice').value);$('position').textContent=fmt(centres[d][slice]*1000,1)+' mm';
+const bb=bounds(),sx=bb[a][1]-bb[a][0],sy=bb[b][1]-bb[b][0],scale=Math.min((w-65)/sx,(h-50)/sy),ox=(w-sx*scale)/2,oy=(h-sy*scale)/2;
+for(let i=0;i<shape[a];i++)for(let j=0;j<shape[b];j++){const pos=[];pos[a]=i;pos[b]=j;pos[d]=slice;const n=index(...pos);if(!inRegion(n))continue;c.fillStyle=colour(values[n]);c.fillRect(ox+(axes[a][i]-bb[a][0])*scale,oy+(bb[b][1]-axes[b][j+1])*scale,(axes[a][i+1]-axes[a][i])*scale+.2,(axes[b][j+1]-axes[b][j])*scale+.2);}
+c.strokeStyle='#899b94';c.strokeRect(ox,oy,sx*scale,sy*scale);c.fillStyle='#50645d';c.font='12px system-ui';c.fillText('xyz'[a]+' / mm',w/2,h-9);c.fillText('xyz'[b]+' / mm',7,18);c.fillText(fmt(bb[a][0]*1000,1),ox,h-25);c.fillText(fmt(bb[a][1]*1000,1),ox+sx*scale-32,h-25);}
+function refresh(){values=f[$('quantity').value].map(v=>$('quantity').value==='e2_v2_m2'?Math.sqrt(Math.max(v,0)):v);lo=Infinity;hi=-Infinity;for(let n=0;n<values.length;n++)if(inRegion(n)){lo=Math.min(lo,values[n]);hi=Math.max(hi,values[n]);}if(!Number.isFinite(lo)){lo=0;hi=1;}document.querySelectorAll('.lo').forEach(e=>e.textContent=fmt(lo,2));document.querySelectorAll('.hi').forEach(e=>e.textContent=fmt(hi,2));drawVolume();drawSection();}
+$('quantity').addEventListener('change',refresh);$('region').addEventListener('change',refresh);$('plane').addEventListener('change',()=>{resetSlice();drawSection();});$('slice').addEventListener('input',drawSection);
+$('volume').addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];e.target.setPointerCapture(e.pointerId);});$('volume').addEventListener('pointermove',e=>{if(!drag)return;yaw+=(e.clientX-drag[0])*.009;pitch=Math.max(-1.4,Math.min(1.4,pitch+(e.clientY-drag[1])*.009));drag=[e.clientX,e.clientY];drawVolume();});$('volume').addEventListener('pointerup',()=>drag=null);$('volume').addEventListener('pointercancel',()=>drag=null);window.addEventListener('resize',refresh);resetSlice();refresh();
+}
+</script>
+</html>
