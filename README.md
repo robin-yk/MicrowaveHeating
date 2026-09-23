@@ -37,8 +37,7 @@ package.json          Root shortcuts to the 2D workspace
 
 ## Run the 2D application
 
-The existing root and `apps/microwave/` page addresses are unchanged.
-For local development, from the repository root:
+Run these commands from the repository root:
 
 ```sh
 npm install
@@ -50,21 +49,20 @@ npm run build
 Root commands forward to the 2D project. Its build output is
 `apps/microwave/dist/`. Verification commands remain `npm run verify:microwave`,
 `npm run verify:field`, `npm run verify:calibrate`, and `npm run si:note`.
-The 3D project has its own Python setup; see its guide rather than these npm commands.
+The 3D project uses the Python setup described in its guide.
 
 ## Development status and preserved work
 
 - **2D:** existing browser application; model limitations are documented in its project.
 - **3D:** development paused. Source and numerical records are preserved on main,
-  separately from 2D. Merging the code does not resume development.
+  separately from 2D.
 - **Single-screen UI experiment:** remains on the separate
   [claude/microwave-simple-ui-ujh2kh branch](https://github.com/robin-yk/MicrowaveHeating/tree/claude/microwave-simple-ui-ujh2kh), not merged.
 - **Earlier 3D layout:** retained on `feat/microwave3d-emthermal`.
 
-Existing local `results3d/` exports and `.venv/` were not deleted or relocated.
-They are ignored artifacts, not source projects. Generated HTML results keep
-working at their existing paths. New project outputs stay inside their project
-and are excluded from Git.
+Local `results3d/` exports and `.venv/` are excluded from Git. Generated HTML
+results use their existing paths. New outputs stay inside their project
+directory and are also excluded from Git.
 
 ## History and license
 
