@@ -1,4 +1,6 @@
-# Microwave Heating Models
+# MicrowaveHeating
+
+Coupled electromagnetic and thermal models of microwave-heated powder beds. The active browser model is two-dimensional; the repository also preserves paused 3D research.
 
 ## Start here
 
@@ -56,7 +58,7 @@ The 3D project has its own Python setup; see its guide rather than these npm com
 - **3D:** development paused. Source and numerical records are preserved on main,
   separately from 2D. Merging the code does not resume development.
 - **Single-screen UI experiment:** remains on the separate
-  [claude/microwave-simple-ui-ujh2kh branch](https://github.com/robin-yk/microwave-2D/tree/claude/microwave-simple-ui-ujh2kh), not merged.
+  [claude/microwave-simple-ui-ujh2kh branch](https://github.com/robin-yk/MicrowaveHeating/tree/claude/microwave-simple-ui-ujh2kh), not merged.
 - **Earlier 3D layout:** retained on `feat/microwave3d-emthermal`.
 
 Existing local `results3d/` exports and `.venv/` were not deleted or relocated.
@@ -66,7 +68,7 @@ and are excluded from Git.
 
 ## History and license
 
-Split from [Electrification Suite](https://github.com/robin-yk/Electrification-Suite),
+Split from [Electrification Suite](https://github.com/robin-yk/ElectrificationSuite),
 which retained the Joule and pulsed-heating tools. The microwave solver's history
 is preserved. By Yeonsu Kwak (Vlachos Lab, University of Delaware).
 [MIT license](LICENSE).
